@@ -1,1 +1,1 @@
-# Medical-Diagnosis-Learning## Frequency Distribution of number of encounters per patient1-2: 8282-5: 82215-10: 1661310-20: 1294720-30: 415230-50: 236450-100: 981100-200: 197200-400: 26400-1000: 1
+# Medical-Diagnosis-Learning## Frequency Distribution of number of encounters per patient(Unique combination of (pat_id, hadm_id) from diagnosis table)1-2: 10572-5: 95845-10: 2336810-20: 1921420-30: 459630-50: 736
