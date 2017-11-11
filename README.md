@@ -3,7 +3,7 @@
   *Aggregation would involve min, mean, max of embeddings (Dubois et. al.)Preliminary Model:
 ![model0](images/model0.jpg)
 
-###Training word embeddings:
+### Training word embeddings:
 - Methods described in Sontag et. al.<br>
 - Take pretrained embeddings(fasttext) and just train our required OOV tokens (not sure how this is done. Related post in Piazza).<br>
 - Use [StarSpace](https://github.com/facebookresearch/StarSpace) to train embeddings from scratch with the objective of classifying diagnoses for each note. Starspace is very recent and don't think medical notes have been trained on it. So not sure if it'll work. But it's made by Jason Weston, so if any questions regarding this, Abhinav can relay our queries to him.
