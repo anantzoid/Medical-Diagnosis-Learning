@@ -42,14 +42,14 @@ def POC_of_seq(patients, pat_adm_id):
             break
 
 def basicstats(patients):
-    print "# of unique patient: %d"%len(patients)
+    print("# of unique patient: %d"%len(patients))
     target_icds = []
     for k, v in patients.iteritems():
         target_icds.extend([_[1] for _ in v[v.keys()[-1]]])
-    print "# of unique target icds: %d"%len(list(set(target_icds)))
-    print "Top occuring: ", Counter(target_icds).most_common(20)
+    print("# of unique target icds: %d"%len(list(set(target_icds))))
+    print("Top occuring: ", Counter(target_icds).most_common(20))
     num_seq = sorted([len(enc.keys())-1 for p, enc in patients.iteritems()])
-    print "FD:", np.histogram(num_seq, bins=[0, 1, 2, 5,10,20,50,100,500,1000,10000]) 
+    print("FD:", np.histogram(num_seq, bins=[0, 1, 2, 5,10,20,50,100,500,1000,10000]))
 
 def read_icd9_embeddings(embedding_path):
     token2idx = {'<PAD>': 0, '<UNK>': 1}
@@ -198,13 +198,13 @@ class Trainer():
                 #print x[0], batch_y.view(-1)[0]
                 loss.backward()
                 self.opti.step()
-                for param in self.model.parameters():
-                    print param[0]
-                    break
+                # for param in self.model.parameters():
+                #     print param[0]
+                #     break
                 if step % 100 == 0:
-                    print batch[0]
-                    print torch.max(x.data, 1)[1] 
-                    print batch_y
+                    # print batch[0]
+                    # print torch.max(x.data, 1)[1] 
+                    # print batch_y
                     print "average paddings:", np.sum(self.avg_pad)/(np.sum(self.avg_tokens)*1.0)
                     self.avg_pad, self.avg_tokens = 0,0
                     self.model.eval()
