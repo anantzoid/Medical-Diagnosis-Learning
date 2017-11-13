@@ -14,6 +14,11 @@ Objective: Use all the notes created during a each admission (unqiue hadm_id) to
 	- [learning heirarchial representation](https://arxiv.org/pdf/1705.08039.pdf)
 	- Learning from convolutions (multiple filters to generate a sequence)
 	- Maybe try grounding?
+    - Other methods of doc2vec
+4. Experiments
+    - Combination of different note types in learning
+    - Evaluation methods
+    - Sliding window etc.
 
 
 #### Workplan to deadline
