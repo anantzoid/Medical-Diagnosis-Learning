@@ -59,3 +59,13 @@ Issues:
 		* Average no.of tokens per notes: 181.32
 		* Note with maximum tokens: 5280
 		* Unique vocab size: 2686349
+
+- 11/16: Current Preprocessing [pipeline](src/preprocessing_pipelin.py)
+	* Choose top-k labels accdn. to freq. dist.
+	* Filter the data accdn. to these labels and choose top vocab list.
+	* Save a filtered list of pre-trained embeddings accdn to new vocab list.
+	
+	* **Note**:
+		* Might need a better tokenizer. Encountering words like patientdesatted & patientazithromycin.
+		* After filtering, a note might just containe only 'unknown' tokens.
+		* For label, only icd9 in seq_num 0 is taken.

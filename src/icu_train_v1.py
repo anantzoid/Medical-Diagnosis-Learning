@@ -1,9 +1,4 @@
-
 # coding: utf-8
-
-# In[135]:
-
-
 import os
 import pickle
 import csv
@@ -15,98 +10,52 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 import re
-
+import time
+import random
 base_path = '/media/disk3/disk3'
 use_cuda = torch.cuda.is_available()
+
+batch_size = 16
+num_workers = 6
+hidden_dim = 400
 
 
 # In[42]:
 
-def read_data_dump(data_path):
+def read_data_dump(data_path, token2idx):
     with open(data_path, 'r') as f:
-        data = pickle.load(f)
-    return data
+        data = pickle.load(f)['data']
 
+    for key in data:
+        data[key]['notes'] = [[token2idx[token] for token in note.split(' ')] for note in data[key]['notes']]
+    random.shuffle(rawdata)
+    margin = int(len(rawdata)*0.8)
+    traindata = rawdata[:margin]
+    valdata = rawdata[margin:]
+    return (traindata, valdata)
 
-
-# In[49]:
-
-
-from sklearn import preprocessing
-import time
-def read_embeddings(vecidx_path, vec_path):
-    words = []
-    t=time.time()
-    with open(vecidx_path, 'r') as f:
-        tsvreader = csv.reader(f, delimiter='\t')
-        for i,row in enumerate(tsvreader):
-            words.append(row[0])
-    
-    
-    vecs = np.ndarray((len(words), 400))
+def read_embeddings(vec_path):    
+    vecs = {}
     with open(vec_path, 'r') as f:
         tsvreader = csv.reader(f, delimiter='\t')
         for i,row in enumerate(tsvreader):
-            vecs[i,:] = row[:400]
-            
-    
-    vecs = preprocessing.normalize(vecs)
-    
-    word2vec = {_:vecs[i,:] for i,_ in enumerate(words)}
-    
-    return word2vec
-
-
-# In[10]:
-
+            vecs[row[0]] = np.array(row[1:])    
+    token2idx = {token:_ for _, token in enumerate(vecs.keys())}
+    return (vecs, token2idx)
 
 def get_labels(ccs_path):
+    #TODO Add to pp step later
     with open(ccs_path, 'rb') as csvf:
         ccs_mapping = {}
         reader = csv.reader(csvf, delimiter=',')
         _ = next(reader)
         for i, row in enumerate(reader):
             ccs_mapping[row[0]] = row[1]
-    return ccs_mapping
+    ccs2idx = {code: i for i, code in enumerate(list(set([ccs_maping[k] for k in ccs_maping.keys()])))}
+    icd2idx = {icd: ccs2idx[ccs_maping[icd]] for icd in ccs_maping.keys()}
+    return icd2idx
 
 
-print "Starting Reading Stuff..."
-_time = time.time()
-data = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
-pretrained = read_embeddings(os.path.join(base_path, 'ri-3gram-400-tsv/vocab.tsv'), 
-                                         os.path.join(base_path, 'ri-3gram-400-tsv/vectors.tsv'))
-
-ccs_maping = get_labels(os.path.join(base_path, 'icd9_ccs.csv'))
-ccs2idx = {code: i for i, code in enumerate(list(set([ccs_maping[k] for k in ccs_maping.keys()])))}
-icd2idx = {icd: ccs2idx[ccs_maping[icd]] for icd in ccs_maping.keys()}
-
-rawdata = []
-for key in data:
-    if 'notes' in data[key]:
-        rawdata.append(data[key])
-
-print "Preprocessing done in %.2f"%((time.time()-_time)/60)
-# In[141]:
-
-
-import random
-random.shuffle(rawdata)
-margin = int(len(rawdata)*0.8)
-testdata = rawdata[:margin]
-valdata = rawdata[margin:]
-
-
-# In[142]:
-
-
-batch_size = 16
-num_workers = 6
-hidden_dim = 100
-
-def clean_str_no_stopwords(s):
-    s = re.sub('\[\*\*.*\*\*\]|\\n|\s+', ' ', s).replace('  ', ' ').lower().split() 
-    return list(set(s))
-    #return [token for token in s if token not in stop_words.ENGLISH_STOP_WORDS]
 
 class Dataloader(Dataset):
     def __init__(self, data):
@@ -122,30 +71,29 @@ def padding_collation(batch):
     max_seq_len = np.max([len(key['notes']) for key in batch])
     
     for key in range(len(batch)):
-        x = sorted(batch[key]['notes'], key=lambda x:datetime.strptime(x['date'], '%Y-%m-%d'))
-        x = [clean_str_no_stopwords(note['note']) for note in batch[key]['notes']]
-        x = [note for note in x if note != []]
+        x = batch[key]['notes']
         x = [['pad'] for i in range(max_seq_len-len(x))] + x
         y =  batch[key]['labels']['icd'][0]
         batch_x.append(x)
         batch_y.append(y)
     return (batch_x, batch_y)
-train_loader = torch.utils.data.DataLoader(dataset=Dataloader(testdata), batch_size=batch_size, shuffle=True, 
-                                                           num_workers=num_workers, collate_fn=padding_collation)
-val_loader = torch.utils.data.DataLoader(dataset=Dataloader(valdata), batch_size=batch_size, shuffle=False, 
-                                                           num_workers=num_workers, collate_fn=padding_collation)
-
-
-# In[143]:
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, embed_dim, hidden_dim, num_labels, batch_size):
+    def __init__(self, embed_dim, hidden_dim, num_labels, batch_size, pretrained):
         super(LSTMModel, self).__init__()
         self.batch_size = batch_size
         self.hidden_dim = hidden_dim
-        self.lstm = nn.LSTM(embed_dim, hidden_dim)
+
+        vocab_size = len(pretrained.keys())
+        self.embed = nn.Emedding(vocab_size, embed_dim)
+        self.embed = nn.Parameter(pretrained)
+        self.embed.weight.requires_grad = False
+
+        #Attention!!!
+        self.lstm = nn.LSTM(embed_dim, hidden_dim, bidirectional=True)
         self.lin = nn.Linear(hidden_dim, num_labels)
+
     def init_hidden(self):
         hidden1 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
         hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
@@ -155,6 +103,12 @@ class LSTMModel(nn.Module):
             return (hidden1, hidden2)
     def forward(self, x, hidden):
         # seqlen x batch x emb_dim
+
+        # batch x seq_len x list of idx  -> batch x seq_len x embed_size
+        avg_embeds = []
+        for b in range(batch_size):
+            avg_embeds.append(torch.mean(embed(x[b, :, :]), dim=1))
+        x = torch.cat(avg_embeds, dim=0)
         x = torch.transpose(x, 1, 0)
         x, _hidden  = self.lstm(x, hidden)
         x = x[-1, :, :].view(self.batch_size, -1)
@@ -164,9 +118,16 @@ class LSTMModel(nn.Module):
 
 # In[144]:
 
+print "Reading data..."
+_time = time.time()
+pretrained, token2idx = read_embeddings(os.path.join(base_path, 'ri-3gram-400-tsv/filtered_embeddings.tsv'))
+traindata, valdata = read_data_dump(os.path.join(base_path, 'notes_dump_cleaned.pkl'), token2idx)
+icd2idx = get_labels(os.path.join(base_path, 'icd9_ccs.csv'))
+print "Preprocessing done in %.2f"%((time.time()-_time)/60)
 
-hidden_dim = 100
-model = LSTMModel(400, hidden_dim, 284, batch_size)
+
+model = LSTMModel(400, hidden_dim, 284, batch_size, pretrained)
+
 opti = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.5, 0.999))
 crit = nn.CrossEntropyLoss()
 
@@ -174,6 +135,10 @@ if use_cuda:
     model.cuda()
     crit.cuda()
 
+train_loader = torch.utils.data.DataLoader(dataset=Dataloader(traindata), batch_size=batch_size, shuffle=True, 
+                                                           num_workers=num_workers, collate_fn=padding_collation)
+val_loader = torch.utils.data.DataLoader(dataset=Dataloader(valdata), batch_size=batch_size, shuffle=False, 
+                                                           num_workers=num_workers, collate_fn=padding_collation)
 
 # In[147]:
 
