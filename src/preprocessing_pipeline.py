@@ -25,26 +25,52 @@ def gettime():
     return diff
 
 from nltk.tokenize import word_tokenize
-def clean_str_no_stopwords(s, embed, stopwords=stop_words.ENGLISH_STOP_WORDS):
+def clean_str_no_stopwords(s, stopwords=stop_words.ENGLISH_STOP_WORDS):
     s = re.sub('\[\*\*.*\*\*\]|\\n|\s+|[^\w\s]', ' ', s).replace('  ', ' ').lower()#.split() 
     if stopwords is not None:
-        s = [w if w in stopwords else 'unknown' for w in word_tokenize(s)]
+        s = [w if w not in stopwords else 'unknown' for w in word_tokenize(s)]
     else:
         s = [w for w in word_tokenize(s)]
     return s
 
-def read_data_dump(data_path):
-    with open(data_path, 'r') as f:
-        data = pickle.load(f)
+def read_fork(data, op_queue):
     rawdata = []
     for key in data:
         if 'notes' in data[key]:
             x = sorted(data[key]['notes'], key=lambda x:datetime.strptime(x['date'], '%Y-%m-%d'))
-            x = [clean_str_no_stopwords(note['note'], embed) for note in data[key]['notes']]
+            x = [clean_str_no_stopwords(note['note']) for note in data[key]['notes']]
             x = [note for note in x if note != []]
             data[key]['notes'] = x 
             rawdata.append(data[key])
-    return data
+    op_queue.put(rawdata)
+
+def read_data_dump(data_path):
+    with open(data_path, 'r') as f:
+        data = pickle.load(f)
+    data = {k:data[k] for k in data.keys()[:5000]} 
+
+    import multiprocessing
+    num_workers = 10
+    output = multiprocessing.Queue()
+    batch_size = len(data.keys()) // num_workers
+    processes = []
+    for _ in range(num_workers):
+        st_ind = _*batch_size
+        end_ind = st_ind+batch_size
+        if _ == num_workers-1 and end_ind < len(data.keys()):
+            end_ind = len(data.keys())
+        batch_data = {idx: data[idx] for idx in data.keys()[st_ind:end_ind]}
+        print len(batch_data.keys())
+        processes.append(multiprocessing.Process(target=read_fork, args=(
+                                            batch_data,  output)))
+    for p in processes:
+        p.start()
+    rawdata = []
+    results = [output.get() for p in processes]
+    for result in results:
+        rawdata.extend(result)
+
+    return rawdata
 
 def read_embeddings(vecidx_path, vec_path):
     words = []
@@ -63,24 +89,26 @@ def read_embeddings(vecidx_path, vec_path):
     return word2vec
 
 def filter_labels(data):
-    labels = [data[key]['labels']['icd'][0] for key in data]
-    labels = list(Counter(labels).most_common(20))
+    labels = [key['labels']['icd'][0] for key in data]
+    labels = [_[0] for _ in list(Counter(labels).most_common(20))]
     return labels
     
-filter_data_by_labels = lambda(data, labels): [data[key] for key in data if data[key]['labels']['icd'][0] in labels]
+def filter_data_by_labels(data, labels): 
+    return [key for key in data if key['labels']['icd'][0] in labels]
 
 def get_vocab(data):
     vocab = []
-    for key in data.keys():
-        for note in data[key]['notes']:
-            vocab.extend(note['note'])
-    vocab = list(Counter(vocab).most_common(10000))
+    for key in data:
+        for note in key['notes']:
+            vocab.extend(note)
+    print vocab[:200]
+    vocab = [_[0] for _ in list(Counter(vocab).most_common(2000))]
     return vocab
 
 def filter_data_by_vocab(data, vocab):
-    for key in data.keys():
-        for i, note in enumerate(data[key]['notes']):
-            data[key]['notes'][i] = " ".join([word if word in vocab else 'unknown' for word in data[key]['notes'][i]])
+    for _,key in enumerate(data):
+        for i, note in enumerate(key['notes']):
+            data[_]['notes'][i] = " ".join([word if word in vocab else 'unknown' for word in key['notes'][i]])
     return data
 
 def filter_embeddings(vocab):
@@ -91,7 +119,7 @@ def filter_embeddings(vocab):
     pretrained_filtered = {}
     pretrained_filtered['unknown'] = pretrained['unknown']
     pretrained_filtered['pad'] = pretrained['pad']
-    for _,word in enumerate(vocabs):
+    for _,word in enumerate(vocab):
         vec = pretrained.get(word, None)
         if vec is not None:
             writer.writerow([word]+list(pretrained[word]))
@@ -101,21 +129,24 @@ if __name__ == "__main__":
     #reading -> sort by date, remove de-id, puncts, tokenize , stopwords
     print "Reading data"
     rawdata = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
-    rawdata = rawdata[:100]
+    print "data size:", len(rawdata)
     print "Filtering labels"
     labels = filter_labels(rawdata)
+    print "num labels:", len(labels)
     print "filter_data_by_labels"
     rawdata = filter_data_by_labels(rawdata, labels)
+    print "data size:", len(rawdata)
     print "vocab..."
-    vocab = get_vocab(data)
+    vocab = get_vocab(rawdata)
+    print "Vocab size:", len(vocab)
     f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'w')
     for v in vocab:
         print >>f, v
     f.close()
     print "filter_data_by_vocab"
-    data = filter_data_by_vocab(data, vocab)
+    rawdata = filter_data_by_vocab(rawdata, vocab)
     f = open(os.path.join(base_path, 'notes_dump_cleaned.pkl'), 'w')
-    pickle.dump({'data':data}, f)
+    pickle.dump({'data':rawdata}, f)
     f.close()
     print "filter_embeddings"
     filter_embeddings(vocab)
