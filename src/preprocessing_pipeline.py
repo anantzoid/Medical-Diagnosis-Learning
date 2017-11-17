@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 from collections import Counter
 
-base_path = '/media/disk3/disk3'
+base_path = '/misc/vlgscratch2/LecunGroup/anant/nlp'
 from sklearn.feature_extraction import stop_words
 import re
 import random
@@ -127,12 +127,15 @@ def filter_embeddings(vocab):
 
 if __name__ == "__main__":
     #reading -> sort by date, remove de-id, puncts, tokenize , stopwords
-    '''    
     print "Reading data"
     rawdata = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
     print "data size:", len(rawdata)
     print "Filtering labels"
     labels = filter_labels(rawdata)
+    f = open(os.path.join(base_path, 'labels.txt'), 'w')
+    for la in labels:
+        print >>f, la
+    f.close()
     print "num labels:", len(labels)
     print "filter_data_by_labels"
     rawdata = filter_data_by_labels(rawdata, labels)
@@ -150,12 +153,11 @@ if __name__ == "__main__":
     pickle.dump({'data':rawdata}, f)
     f.close()
     print "filter_embeddings"
-    '''    
     
-    f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'r')
-    vocab = []
-    for line in f.readlines():
-        vocab.append(line.replace('\n', ''))
+    #f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'r')
+    #vocab = []
+    #for line in f.readlines():
+    #    vocab.append(line.replace('\n', ''))
  
     filter_embeddings(vocab)
 

@@ -12,8 +12,11 @@ import torch.nn.functional as F
 import re
 import time
 import random
-base_path = '/media/disk3/disk3'
-use_cuda = False#torch.cuda.is_available()
+base_path = '/misc/vlgscratch2/LecunGroup/anant/nlp'
+use_cuda = torch.cuda.is_available()
+
+if use_cuda:
+    torch.cuda.set_device(3)
 
 batch_size = 1
 num_workers = 1
@@ -142,7 +145,7 @@ print "Preprocessing done in %.2f"%((time.time()-_time)/60)
 
 model = LSTMModel(400, hidden_dim, len(label_map.keys()), batch_size, pretrained)
 
-opti = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.5, 0.999))
+opti = torch.optim.Adam(model.parameters(), lr=1e-2, betas=(0.5, 0.999))
 model.embed.weight.requires_grad = False
 crit = nn.CrossEntropyLoss()
 
@@ -154,45 +157,27 @@ if use_cuda:
 #                                                           num_workers=num_workers)
 #val_loader = torch.utils.data.DataLoader(dataset=Dataloader(valdata), batch_size=batch_size, shuffle=False) 
 
+def data_iter(source, batch_size):
+    dataset_size = len(source)
+    start = -1 * batch_size
+    order = list(range(dataset_size))
+    random.shuffle(order)
+
+    while True:
+        start += batch_size
+        if start > dataset_size - batch_size:
+            # Start another epoch.
+            start = 0
+            random.shuffle(order)   
+        batch_indices = order[start:start + batch_size]
+        yield [source[index] for index in batch_indices]
+
+training_iter = data_iter(traindata, batch_size)
 # In[147]:
-def evaluate(model, loader, batch_size, label_map):
-    correct = 0
-    total = 0
-
-    for i in loader:
-        if len(i[0]) != batch_size:
-            continue
-        seq_len = len(i[0][0])
-        batch_x = np.ndarray((batch_size, seq_len, 400))
-        for bs, adm in enumerate(i[0]):
-            for idx, note in enumerate(adm):
-                note_vec = []
-                for token in note:
-                    note_vec.append(pretrained.get(re.sub(r'[^\w\s]','', token), pretrained['unknown']))
-                
-                batch_x[bs, idx, :] = np.mean(note_vec)  
-                
-        batch_x = torch.from_numpy(batch_x).float()
-        batch_y = torch.from_numpy(np.array([label_map[_] for _ in i[1]])).long().view(batch_size)
-        if use_cuda:
-            batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
-            
-        x = Variable(batch_x)
-        hidden = model.init_hidden()
-        x = model(x, hidden)
-        _, predicted = torch.max(x.data, 1)
-        total += batch_y.size(0)
-        print predicted
-        print batch_y
-        correct += (predicted == batch_y.data).sum()
-        break
-    return correct / float(total)
-
-
 # In[ ]:
 
 step = 0
-num_epochs = 100
+num_epochs = 1000000
 step_log = []
 loss_log = []
 val_acc_log = []
@@ -202,54 +187,61 @@ torch.manual_seed(1)
 
 
 for num_ep in range(num_epochs):
-    #for i in train_loader:
-    for i,dp in enumerate(traindata[:batch_size]):
-        #if len(dp) != batch_size:
-        #    continue
+    #for i in range()train_loader:
+    #for i,dp in enumerate(traindata[:batch_size]):
+    dp = next(training_iter)
+    dp = dp[0]
+    #if len(dp) != batch_size:
+    #    continue
 
-        mnl =  np.max([len(_) for _ in dp['notes']])
-        padded_notes=[]
-        for _ in dp['notes']:
-            padded_notes.append([0]*(mnl-len(_))+_)
-        batch_x = torch.mean(model.embed(Variable(torch.from_numpy(np.array(padded_notes)).long())), dim=1).unsqueeze(0)
+    model.zero_grad()
 
-        batch_y = Variable(torch.from_numpy(np.array([label_map[dp['labels']['icd'][0]]])).long().view(batch_size))
-        
-        model.zero_grad()
-        #x = Variable(batch_x)
+    mnl =  np.max([len(_) for _ in dp['notes']])
+    padded_notes=[]
+    for _ in dp['notes']:
+        padded_notes.append([0]*(mnl-len(_))+_)
 
-        if use_cuda:
-            batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
-        hidden = model.init_hidden()
-        x = model(batch_x, hidden)
-        loss = crit(x, batch_y)
-        loss.backward()
-        opti.step()
+    batch_x = torch.from_numpy(np.array(padded_notes)).long()
+    batch_y = Variable(torch.from_numpy(np.array([label_map[dp['labels']['icd'][0]]])).long().view(batch_size))
+    if use_cuda:
+        batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
 
-        _, predicted = torch.max(x.data, 1)
-        total = batch_y.size(0)
-        correct = (predicted == batch_y.data).sum()
-        train_acc.append(correct / float(total))
+    batch_x = torch.mean(model.embed(Variable(batch_x)), dim=1).unsqueeze(0)
 
-        if step % 100 == 0:
-            train_acc = np.mean(train_acc)
-            model.eval()
-            val_acc = evaluate(model, val_loader, batch_size, label_map)
-            print("Step: %d, Loss: %.4f, Train Acc: %.2f, Validation Acc: %.2f"%(step, loss.data[0], train_acc, val_acc))
-            step_log.append(step)
-            loss_log.append(loss.data[0])
-            val_acc_log.append(val_acc)
-            train_acc_log.append(train_acc)
-            model.train()
-            train_acc = []
-        step += 1
-        
-    f = open('results_%d.pkl'%num_ep, 'w')
-    pickle.dump({'step': step_log, 'loss': loss_log, 'val': val_acc_log, 'train': train_acc_log}, f)
-    f.close() 
+    #x = Variable(batch_x)
 
+    hidden = model.init_hidden()
+    x = model(batch_x, hidden)
+    loss = crit(x, batch_y)
+    loss.backward()
+    opti.step()
 
-
+    _, predicted = torch.max(x.data, 1)
+    total = batch_y.size(0)
+    correct = (predicted == batch_y.data).sum()
+    train_acc.append(correct / float(total))
+    
+    if step % 1000 == 0:
+        '''
+        model.eval()
+        val_acc = evaluate(model, val_loader, batch_size, label_map)
+        print("Step: %d, Loss: %.4f, Train Acc: %.2f, Validation Acc: %.2f"%(step, loss.data[0], train_acc, val_acc))
+        val_acc_log.append(val_acc)
+        '''
+        train_acc = np.mean(train_acc)
+        print("Step: %d, Loss: %.4f, Train Acc: %.2f"%(step, loss.data[0], train_acc))
+        step_log.append(step)
+        loss_log.append(loss.data[0])
+        train_acc_log.append(train_acc)
+        model.train()
+        train_acc = []
+    step += 1
+    
+    if step%10000==0:    
+        f = open('results.pkl', 'w')
+        pickle.dump({'step': step_log, 'loss': loss_log, 'train': train_acc_log}, f)
+        #pickle.dump({'step': step_log, 'loss': loss_log, 'val': val_acc_log, 'train': train_acc_log}, f)
+        f.close() 
 
 
 
