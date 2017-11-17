@@ -117,8 +117,8 @@ def filter_embeddings(vocab):
     csvf = open(os.path.join(base_path, 'ri-3gram-400-tsv/filtered_embeddings.tsv'), 'w')
     writer = csv.writer(csvf, delimiter='\t')
     pretrained_filtered = {}
-    pretrained_filtered['unknown'] = pretrained['unknown']
-    pretrained_filtered['pad'] = pretrained['pad']
+    writer.writerow(['pad']+list(pretrained['pad']))
+    writer.writerow(['unknown']+list(pretrained['unknown']))
     for _,word in enumerate(vocab):
         vec = pretrained.get(word, None)
         if vec is not None:
@@ -127,6 +127,7 @@ def filter_embeddings(vocab):
 
 if __name__ == "__main__":
     #reading -> sort by date, remove de-id, puncts, tokenize , stopwords
+    '''    
     print "Reading data"
     rawdata = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
     print "data size:", len(rawdata)
@@ -149,5 +150,12 @@ if __name__ == "__main__":
     pickle.dump({'data':rawdata}, f)
     f.close()
     print "filter_embeddings"
+    '''    
+    
+    f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'r')
+    vocab = []
+    for line in f.readlines():
+        vocab.append(line.replace('\n', ''))
+ 
     filter_embeddings(vocab)
 
