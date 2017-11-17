@@ -102,7 +102,7 @@ def get_vocab(data):
         for note in key['notes']:
             vocab.extend(note)
     print vocab[:200]
-    vocab = [_[0] for _ in list(Counter(vocab).most_common(2000))]
+    vocab = [_[0] for _ in list(Counter(vocab).most_common(1000))]
     return vocab
 
 def filter_data_by_vocab(data, vocab):
