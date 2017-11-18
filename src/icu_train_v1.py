@@ -18,7 +18,7 @@ use_cuda = torch.cuda.is_available()
 if use_cuda:
     torch.cuda.set_device(3)
 
-batch_size = 2
+batch_size = 64
 num_workers = 1
 hidden_dim = 400
 random.seed(10)
@@ -26,19 +26,23 @@ random.seed(10)
 
 # In[42]:
 
-def read_data_dump(data_path, token2idx):
-    with open(data_path, 'r') as f:
-        rawdata = pickle.load(f)['data']
-
-    for i, key in enumerate(rawdata):
-        rawdata[i]['notes'] = [[token2idx.get(token, token2idx['unknown']) for token in note.split(' ')] for note in key['notes']][-5:]
+def splitdata(rawdata):
     random.shuffle(rawdata)
     margin = int(len(rawdata)*0.8)
     traindata = rawdata[:margin]
     valdata = rawdata[margin:]
     return (traindata, valdata)
 
+def read_data_dump(data_path, token2idx):
+    with open(data_path, 'r') as f:
+        rawdata = pickle.load(f)['data']
+
+    for i, key in enumerate(rawdata):
+        rawdata[i]['notes'] = [[token2idx.get(token, token2idx['unknown']) for token in note.split(' ')] for note in key['notes']][-5:]
+    return splitdata(rawdata)
+
 def read_data_dump_v2(data_path, token2idx):
+    #    Drop all unknowns and keep notes with len > 50
     with open(data_path, 'r') as f:
         rawdata = pickle.load(f)['data']
     newrawdata = []
@@ -51,17 +55,40 @@ def read_data_dump_v2(data_path, token2idx):
                     note_idx.append(token2idx[token])
             if len(note_idx) > 50: 
                 token_notes.append(note_idx)
-            #token_notes.append([token2idx[token] for token in note.split(' ')  if (token2idx.get(token,None) is not None or token!='unknown')])
         rawdata[i]['notes'] = token_notes
         if len(token_notes):
             newrawdata.append(rawdata[i])
-
     rawdata = newrawdata
-    random.shuffle(rawdata)
-    margin = int(len(rawdata)*0.8)
-    traindata = rawdata[:margin]
-    valdata = rawdata[margin:]
-    return (traindata, valdata)
+    return splitdata(rawdata)
+
+def read_data_dump_v3(data_path, token2idx=None):
+    #    Keep last discharge summary    
+    with open(data_path, 'r') as f:
+        rawdata = pickle.load(f)['data']
+    newrawdata = []
+    for i, key in enumerate(rawdata):
+        token_notes = []
+        key['notes'].reverse()
+        for note in key['notes']:
+            if note['note_type'].lower() != 'discharge summary':
+                continue
+            note_idx = []
+            note = note['note']
+            for token in note.split(' '):
+                if len(token) > 2:
+                    note_idx.append(token)
+                #if (token2idx.get(token,None) is not None and token!='unknown'):
+                #    note_idx.append(token2idx[token])
+            token_notes = note_idx
+            break
+        rawdata[i]['original'] = note
+        rawdata[i]['notes'] = token_notes
+        if len(token_notes):
+            newrawdata.append(rawdata[i])
+    rawdata = newrawdata
+    return splitdata(rawdata)
+
+
 
 def read_embeddings(vec_path):    
     vecs, tokens = [], []
@@ -96,7 +123,7 @@ def get_labels(labels_path):
     return labels
 
 
-class Dataloader(Dataset):
+class NoteDataloader(Dataset):
     def __init__(self, data):
         super(Dataloader, self).__init__()
         self.data = data
@@ -124,14 +151,13 @@ def padding_collation(batch):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, embed_dim, hidden_dim, num_labels, batch_size, pretrained):
+    def __init__(self, embed_dim, hidden_dim, num_labels, batch_size, vocab_size, pretrained=None):
         super(LSTMModel, self).__init__()
         self.batch_size = batch_size
         self.hidden_dim = hidden_dim
 
-        vocab_size = pretrained.shape[0]
         self.embed = nn.Embedding(vocab_size, embed_dim)
-        self.embed.weight = nn.Parameter(torch.from_numpy(pretrained).float())
+        #self.embed.weight = nn.Parameter(torch.from_numpy(pretrained).float())
 
         #Attention!!!
         self.lstm = nn.LSTM(embed_dim, hidden_dim, bidirectional=False)
@@ -152,6 +178,7 @@ class LSTMModel(nn.Module):
         #for b in range(batch_size):
         #    avg_embeds.append(torch.mean(embed(x[b, :, :]), dim=1))
         #x = torch.cat(avg_embeds, dim=0)
+        x = self.embed(x)
         x = torch.transpose(x, 1, 0)
         x, _hidden  = self.lstm(x, hidden)
         x = x[-1, :, :].view(self.batch_size, -1)

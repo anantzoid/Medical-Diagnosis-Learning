@@ -28,7 +28,7 @@ from nltk.tokenize import word_tokenize
 def clean_str_no_stopwords(s, stopwords=stop_words.ENGLISH_STOP_WORDS):
     s = re.sub('\[\*\*.*\*\*\]|\\n|\s+|[^\w\s]', ' ', s).replace('  ', ' ').lower()#.split() 
     if stopwords is not None:
-        s = [w if w not in stopwords else 'unknown' for w in word_tokenize(s)]
+        s = [w  for w in word_tokenize(s) if (w not in stopwords and not w.isdigit())]
     else:
         s = [w for w in word_tokenize(s)]
     return s
@@ -37,17 +37,20 @@ def read_fork(data, op_queue):
     rawdata = []
     for key in data:
         if 'notes' in data[key]:
-            x = sorted(data[key]['notes'], key=lambda x:datetime.strptime(x['date'], '%Y-%m-%d'))
-            x = [clean_str_no_stopwords(note['note']) for note in data[key]['notes']]
-            x = [note for note in x if note != []]
-            data[key]['notes'] = x 
+            data[key]['notes'] = sorted(data[key]['notes'], key=lambda x:datetime.strptime(x['date'], '%Y-%m-%d'))
+            for n, note in enumerate(data[key]['notes']):
+                data[key]['notes'][n]['note'] = clean_str_no_stopwords(note['note'])
+                
+            #x = [clean_str_no_stopwords(note['note']) for note in data[key]['notes']]
+            #x = [note for note in x if note != []]
+            #data[key]['notes'] = x 
             rawdata.append(data[key])
     op_queue.put(rawdata)
 
 def read_data_dump(data_path):
     with open(data_path, 'r') as f:
         data = pickle.load(f)
-    data = {k:data[k] for k in data.keys()[:5000]} 
+    data = {k:data[k] for k in data.keys()[:10000]} 
 
     import multiprocessing
     num_workers = 10
@@ -88,9 +91,9 @@ def read_embeddings(vecidx_path, vec_path):
     word2vec = {_:vecs[i,:].reshape(-1) for i,_ in enumerate(words)}
     return word2vec
 
-def filter_labels(data):
+def filter_labels(data, num_labels):
     labels = [key['labels']['icd'][0] for key in data]
-    labels = [_[0] for _ in list(Counter(labels).most_common(20))]
+    labels = [_[0] for _ in list(Counter(labels).most_common(num_labels))]
     return labels
     
 def filter_data_by_labels(data, labels): 
@@ -100,7 +103,10 @@ def get_vocab(data):
     vocab = []
     for key in data:
         for note in key['notes']:
-            vocab.extend(note)
+            if isinstance(note, dict):
+                vocab.extend(note['note'])
+            else:
+                vocab.extend(note)
     print vocab[:200]
     vocab = [_[0] for _ in list(Counter(vocab).most_common(1000))]
     return vocab
@@ -108,7 +114,10 @@ def get_vocab(data):
 def filter_data_by_vocab(data, vocab):
     for _,key in enumerate(data):
         for i, note in enumerate(key['notes']):
-            data[_]['notes'][i] = " ".join([word if word in vocab else 'unknown' for word in key['notes'][i]])
+            if isinstance(key['notes'][i], dict):
+                data[_]['notes'][i]['note'] = " ".join([word   for word in key['notes'][i]['note'] if word in vocab])
+            else:
+                data[_]['notes'][i]['note'] = " ".join([word if word in vocab else 'unknown' for word in key['notes'][i]['note']])
     return data
 
 def filter_embeddings(vocab):
@@ -126,12 +135,13 @@ def filter_embeddings(vocab):
     csvf.close()
 
 if __name__ == "__main__":
+    num_labels = 5
     #reading -> sort by date, remove de-id, puncts, tokenize , stopwords
     print "Reading data"
     rawdata = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
     print "data size:", len(rawdata)
     print "Filtering labels"
-    labels = filter_labels(rawdata)
+    labels = filter_labels(rawdata, num_labels)
     f = open(os.path.join(base_path, 'labels.txt'), 'w')
     for la in labels:
         print >>f, la
@@ -152,12 +162,12 @@ if __name__ == "__main__":
     f = open(os.path.join(base_path, 'notes_dump_cleaned.pkl'), 'w')
     pickle.dump({'data':rawdata}, f)
     f.close()
-    print "filter_embeddings"
+    #print "filter_embeddings"
     
     #f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'r')
     #vocab = []
     #for line in f.readlines():
     #    vocab.append(line.replace('\n', ''))
  
-    filter_embeddings(vocab)
+    #filter_embeddings(vocab)
 
