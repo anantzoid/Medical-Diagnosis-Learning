@@ -13,8 +13,8 @@ def evaluate(model, loader, batch_size, crit, use_cuda):
         if use_cuda:
             x, y = x.cuda(), y.cuda()
 
-        hidden = model.init_hidden()
-        x = model(x, hidden)
+        #hidden = model.init_hidden()
+        x = model(x)#, hidden)
         loss = crit(x, y)
         _, predicted = torch.max(x.data, 1)
         total += batch[1].size(0)

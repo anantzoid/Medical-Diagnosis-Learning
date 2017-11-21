@@ -7,7 +7,7 @@ from collections import Counter
 import collections
 import numpy as np
 import torch
-
+import re
 
 def load_data_csv(path, easy_label_map):
     data= []
@@ -17,10 +17,12 @@ def load_data_csv(path, easy_label_map):
         _data = {}        
         for row in csvreader:
             line +=1
-            _text = row[0].replace("\n", "")
+            #_text = row[0].replace("\n", "")
+            _text = re.sub('\[\*\*.*\*\*\]|\\n|\s+|_', ' ', row[0]).replace('  ', ' ').lower()#.split() 
             _text = _text.split(". ")
             for _t in _text:
-                data.append({'text':_t, 'label':easy_label_map[row[1]]})
+                if len(_t):
+                    data.append({'text':_t, 'label':easy_label_map[row[1]]})
     
     random.shuffle(data)
     print("# of data samples:%d"%len(data))

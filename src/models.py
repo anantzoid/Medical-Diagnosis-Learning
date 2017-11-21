@@ -23,21 +23,24 @@ class LSTMModel(nn.Module):
         self.use_cuda = use_cuda
 
         self.embed = nn.Embedding(vocab_size, embed_dim)
-        self.lstm = nn.LSTM(embed_dim, hidden_dim)
-        self.lin = nn.Linear(hidden_dim, len(labels.keys()))
+        self.lstm = nn.LSTM(embed_dim, hidden_dim, num_layers=2, bidirectional=True)
+        self.lin = nn.Linear(2*hidden_dim, len(labels.keys()))
+        self.init_hidden()
     def init_hidden(self):
-        hidden1 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
-        hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
+        hidden1 = Variable(torch.zeros(4, self.batch_size, self.hidden_dim))
+        hidden2 = Variable(torch.zeros(4, self.batch_size, self.hidden_dim))
         if self.use_cuda:
-            return (hidden1.cuda(), hidden2.cuda())
+            self.hidden = (hidden1.cuda(), hidden2.cuda())
+            #return (hidden1.cuda(), hidden2.cuda())
         else:
-            return (hidden1, hidden2)
+            self.hidden = (hidden1, hidden2)
+            #return (hidden1, hidden2)
 
 
-    def forward(self, x, hidden):
+    def forward(self, x):#, hidden):
         x = self.embed(x)
         x = torch.transpose(x, 1, 0)
-        x, _hidden  = self.lstm(x, hidden)
+        x, _hidden  = self.lstm(x, self.hidden)
         x = x[-1, :, :].view(self.batch_size, -1)
         x = self.lin(x)
         return x

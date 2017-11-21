@@ -1,15 +1,16 @@
-exp_name = 'small_5label_adam_lrdecay'
+exp_name = 'bilstm2Layer_5label_adam_lrdecay'
 
 import torch
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     torch.cuda.set_device(1)
-
+multi_gpu = False#True
 
 # In[27]:
 
 
 import sys
+import pickle
 from collections import Counter
 #sys.path.append('/home/pau/Medical-Diagnosis-Learning/src')
 sys.path.append('/home/ag4508/Medical-Diagnosis-Learning/src')
@@ -21,12 +22,22 @@ from util_icu_train import get_labels
 
 easy_label_map = get_labels('/misc/vlgscratch2/LecunGroup/anant/nlp/labels.txt')
 training_set = load_data_csv('/misc/vlgscratch2/LecunGroup/anant/nlp/notes_sample_5class.csv', easy_label_map)
-#training_set = training_set[:100]
-print("FD of labels:", Counter([_['label'] for _ in training_set]))
+#training_set = training_set[:1000]
+analytics = False
+if analytics:
+    text = [_['text'] for _ in training_set]
+    lentext = [len(_['text']) for _ in training_set]
+    import numpy as np
+    print text[np.argmax(lentext)]
+    print np.mean(lentext)
+    print np.max(lentext)
+    print np.min(lentext)
+    print("FD of labels:", Counter([_['label'] for _ in training_set]))
+    exit()
 
 PADDING = "<PAD>"
 UNKNOWN = "<UNK>"
-max_seq_length = 20
+max_seq_length = 50
 
 word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN)
 sentences_to_padded_index_sequences(word_to_ix, [training_set], max_seq_length, PADDING, UNKNOWN)
@@ -36,10 +47,10 @@ sentences_to_padded_index_sequences(word_to_ix, [training_set], max_seq_length, 
 
 
 from models import *
-batch_size = 256
-num_workers = 4
-embed_dim = 50
-hidden_dim = 100
+batch_size = 56
+num_workers = 6
+embed_dim = 200
+hidden_dim = 400
 lr = 1e-2
 
 val_set = training_set[int(0.8*len(training_set)):]
@@ -61,6 +72,8 @@ crit = nn.CrossEntropyLoss()
 if use_cuda:
     model.cuda()
     crit.cuda()
+    if multi_gpu:
+        model = nn.DataParallel(model, device_ids=(0, 1)) 
 
 from eval import *    
 
@@ -71,7 +84,7 @@ val_acc_log = []
 val_loss_log = []
 train_acc_log = []
 
-for nu_ep in range(3):
+for nu_ep in range(100):
     for batch in train_loader:
         if batch[0].size(0) != batch_size:
             continue
@@ -81,8 +94,8 @@ for nu_ep in range(3):
         if use_cuda:
             x, y = x.cuda(), y.cuda()
 
-        hidden = model.init_hidden()
-        x = model(x, hidden)
+        #hidden = model.init_hidden()
+        x = model(x)#, hidden)
         loss = crit(x, y)
         loss.backward()
         opti.step()
@@ -90,11 +103,11 @@ for nu_ep in range(3):
         if step % 100 == 0:
             model.eval()
             _, predicted = torch.max(x.data, 1)    
-            train_acc = (predicted == y.data).sum() / batch[1].size(0)
+            train_acc = (predicted == y.data).sum() / float(batch[1].size(0))
 
             val_acc, val_loss, pred_vals = evaluate(model, val_loader, batch_size, crit, use_cuda)
             model.train()        
-            print("Step: %d, Loss: %.4f, Train Acc: %.2f, Validation Acc: %.2f, Val loss: %.2f"%(step, loss.data[0], train_acc, val_acc, val_loss))
+            print("Step: %d, Epoch: %d, Loss: %.4f, Train Acc: %.2f, Validation Acc: %.2f, Val loss: %.2f"%(step, nu_ep, loss.data[0], train_acc, val_acc, val_loss))
             step_log.append(step)
             loss_log.append(loss.data[0])
             train_acc_log.append(train_acc)
@@ -103,15 +116,16 @@ for nu_ep in range(3):
         if step % 1000 == 0:
             print(pred_vals) 
         step += 1
-    lr *= 0.1
-    opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    
+    if nu_ep%5==0:
+        lr *= 0.9
+        opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+        torch.save(model.state_dict(), '/misc/vlgscratch2/LecunGroup/anant/nlp/model_%s.pth'%exp_name)
 
 
-
-import pickle
-f = open('results_%s.pkl'%exp_name, 'w')
-pickle.dump({'step_log': step_log, 'loss_log': loss_log, 'val_loss_log': val_loss_log, 'val_loss_log': val_loss_log, 'train_acc_log': train_acc_log}, f)
-f.close()
+    f = open('/misc/vlgscratch2/LecunGroup/anant/nlp/results_%s.pkl'%exp_name, 'w')
+    pickle.dump({'step_log': step_log, 'loss_log': loss_log, 'val_loss_log': val_loss_log, 'val_loss_log': val_loss_log, 'train_acc_log': train_acc_log}, f)
+    f.close()
 #import matplotlib.pyplot as plt
 #get_ipython().magic(u'matplotlib inline')
 
