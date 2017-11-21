@@ -8,9 +8,6 @@ import collections
 import numpy as np
 import torch
 
-def strip_accents(s):
-    return ''.join(c for c in unicodedata.normalize('NFD', s)
-                  if unicodedata.category(c) != 'Mn')
 
 def load_data_csv(path, easy_label_map):
     data= []

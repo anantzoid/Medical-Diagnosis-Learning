@@ -23,6 +23,24 @@ def splitdata(rawdata):
     valdata = rawdata[margin:]
     return (traindata, valdata)
 
+
+def csv_prepare_sentence_wise(data_path, dest_path, dis_sum=False):
+    with open(data_path, 'r') as f:
+        rawdata = pickle.load(f)['data']
+    newrawdata = []
+    rawdata = rawdata
+    for i, key in enumerate(rawdata):
+        for note in key['notes']:
+            if dis_sum == True: 
+                if note['note_type'].lower() == 'discharge summary':
+                    newrawdata.append([note['note'], key['labels']['icd'][0]])
+            else:
+                newrawdata.append([note['note'], key['labels']['icd'][0]])
+    with open(dest_path, 'w') as csvf:
+        writer = csv.writer(csvf, delimiter=',', quotechar='"')
+        writer.writerows(newrawdata)
+    
+       
 def read_data_dump_v3(data_path, token2idx=None):
     #    Keep last discharge summary    
     with open(data_path, 'r') as f:
@@ -120,3 +138,7 @@ class LSTMModel(nn.Module):
         return x
 
 
+
+if __name__ == "__main__":
+    base_path = '/misc/vlgscratch2/LecunGroup/anant/nlp'
+    csv_prepare_sentence_wise(os.path.join(base_path, 'notes_dump_cleaned.pkl'), os.path.join(base_path, 'notes_csv_5label.csv'))

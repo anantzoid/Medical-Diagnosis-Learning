@@ -26,7 +26,8 @@ def gettime():
 
 from nltk.tokenize import word_tokenize
 def clean_str_no_stopwords(s, stopwords=stop_words.ENGLISH_STOP_WORDS):
-    s = re.sub('\[\*\*.*\*\*\]|\\n|\s+|[^\w\s]', ' ', s).replace('  ', ' ').lower()#.split() 
+    #s = re.sub('\[\*\*.*\*\*\]|\\n|\s+|[^\w\s]', ' ', s).replace('  ', ' ').lower()#.split() 
+    s = re.sub('\[\*\*.*\*\*\]|\\n|\s+', ' ', s).replace('  ', ' ').lower()#.split() 
     if stopwords is not None:
         s = [w  for w in word_tokenize(s) if (w not in stopwords and not w.isdigit())]
     else:
@@ -39,11 +40,8 @@ def read_fork(data, op_queue):
         if 'notes' in data[key]:
             data[key]['notes'] = sorted(data[key]['notes'], key=lambda x:datetime.strptime(x['date'], '%Y-%m-%d'))
             for n, note in enumerate(data[key]['notes']):
-                data[key]['notes'][n]['note'] = clean_str_no_stopwords(note['note'])
+                data[key]['notes'][n]['note'] = clean_str_no_stopwords(note['note'], None)
                 
-            #x = [clean_str_no_stopwords(note['note']) for note in data[key]['notes']]
-            #x = [note for note in x if note != []]
-            #data[key]['notes'] = x 
             rawdata.append(data[key])
     op_queue.put(rawdata)
 
@@ -159,7 +157,7 @@ if __name__ == "__main__":
     f.close()
     print "filter_data_by_vocab"
     rawdata = filter_data_by_vocab(rawdata, vocab)
-    f = open(os.path.join(base_path, 'notes_dump_cleaned.pkl'), 'w')
+    f = open(os.path.join(base_path, 'notes_dump_cleaned_puncts.pkl'), 'w')
     pickle.dump({'data':rawdata}, f)
     f.close()
     #print "filter_embeddings"

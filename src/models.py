@@ -15,16 +15,25 @@ class TextData(data.Dataset):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim, labels, batch_size):
+    def __init__(self, vocab_size, embed_dim, hidden_dim, labels, batch_size, use_cuda):
         super(LSTMModel, self).__init__()
         self.embed_dim = embed_dim
         self.batch_size = batch_size
         self.hidden_dim = hidden_dim
+        self.use_cuda = use_cuda
+
         self.embed = nn.Embedding(vocab_size, embed_dim)
         self.lstm = nn.LSTM(embed_dim, hidden_dim)
         self.lin = nn.Linear(hidden_dim, len(labels.keys()))
     def init_hidden(self):
-        return (Variable(torch.zeros(1, self.batch_size, self.hidden_dim)), Variable(torch.zeros(1, self.batch_size, self.hidden_dim)))
+        hidden1 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
+        hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
+        if self.use_cuda:
+            return (hidden1.cuda(), hidden2.cuda())
+        else:
+            return (hidden1, hidden2)
+
+
     def forward(self, x, hidden):
         x = self.embed(x)
         x = torch.transpose(x, 1, 0)

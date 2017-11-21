@@ -87,4 +87,3 @@ for nup in range(100):
         opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
         print "new lr:", lr
     
-    model.save_state_dict('v2.pth')

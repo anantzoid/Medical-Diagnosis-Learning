@@ -1,24 +1,29 @@
 
-def evaluate(model, loader, batch_size):
-    model.eval()
+def evaluate(model, loader, batch_size, crit, use_cuda):
+    import torch
+    from torch.autograd import Variable
     correct = 0
     total = 0
-    for i in loader:
 
     for batch in loader:
         if batch[0].size(0) != batch_size:
             continue
         x = Variable(batch[0])
+        y = Variable(batch[1].view(-1))
+        if use_cuda:
+            x, y = x.cuda(), y.cuda()
+
         hidden = model.init_hidden()
         x = model(x, hidden)
+        loss = crit(x, y)
         _, predicted = torch.max(x.data, 1)
         total += batch[1].size(0)
-        correct += (predicted == batch[1]).sum()
+        correct += (predicted == y.data).sum()
       
-    return correct / float(total)
+    return (correct / float(total), loss.data[0], predicted[:10])
 
 
-
+'''
 def evaluate(model, loader, batch_size, label_map):
     correct = 0
     total = 0
@@ -52,5 +57,5 @@ def evaluate(model, loader, batch_size, label_map):
         break
     return correct / float(total)
 
-
+'''
 
