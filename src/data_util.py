@@ -9,6 +9,16 @@ import numpy as np
 import torch
 import re
 
+def extract_summary(text):
+    newtext = ''
+    if 'final diagnosis' in text or 'discharge diagnosis' in text:
+        if 'final diagnosis' in text:
+            newtext += text[text.index('final diagnosis'):]
+        if 'discharge diagnosis' in text:
+            newtext += text[text.index('discharge diagnosis'):]
+    return newtext
+             
+
 def load_data_csv(path, easy_label_map):
     data= []
     line = 0
@@ -18,12 +28,13 @@ def load_data_csv(path, easy_label_map):
         for row in csvreader:
             line +=1
             #_text = row[0].replace("\n", "")
-            _text = re.sub('\[\*\*.*\*\*\]|\\n|\s+|_', ' ', row[0]).replace('  ', ' ').lower()#.split() 
-            _text = _text.split(". ")
+            _text = extract_summary(_text) 
+            _text = re.sub('\[\*\*.*\*\*\]|\s+|_', ' ', row[0]).replace('  ', ' ').lower()#.split() 
+            _text = _text.split(".\n")
             for _t in _text:
-                if len(_t):
+                if len(_t) > 5:
                     data.append({'text':_t, 'label':easy_label_map[row[1]]})
-    
+
     random.shuffle(data)
     print("# of data samples:%d"%len(data))
     return data
@@ -31,7 +42,7 @@ def load_data_csv(path, easy_label_map):
 def tokenize(string):
     return string.split()
 
-def build_dictionary(training_datasets, PADDING, UNKNOWN):
+def build_dictionary(training_datasets, PADDING, UNKNOWN, vocab_threshold):
     """
     Extract vocabulary and build dictionary.
     """  
@@ -40,7 +51,7 @@ def build_dictionary(training_datasets, PADDING, UNKNOWN):
         for example in dataset:
             word_counter.update(tokenize(example['text']))
     
-    vocabulary = set([word for word in word_counter if word_counter[word] > 10])
+    vocabulary = set([word for word in word_counter if word_counter[word] > vocab_threshold])
     vocabulary = list(vocabulary)
     vocabulary = [PADDING, UNKNOWN] + vocabulary
         

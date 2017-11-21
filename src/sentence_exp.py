@@ -37,9 +37,9 @@ if analytics:
 
 PADDING = "<PAD>"
 UNKNOWN = "<UNK>"
-max_seq_length = 50
+max_seq_length = 70
 
-word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN)
+word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN, vocab_threshold=50)
 sentences_to_padded_index_sequences(word_to_ix, [training_set], max_seq_length, PADDING, UNKNOWN)
 
 
@@ -47,10 +47,10 @@ sentences_to_padded_index_sequences(word_to_ix, [training_set], max_seq_length, 
 
 
 from models import *
-batch_size = 56
-num_workers = 6
-embed_dim = 200
-hidden_dim = 400
+batch_size = 128
+num_workers = 4
+embed_dim = 100
+hidden_dim = 300
 lr = 1e-2
 
 val_set = training_set[int(0.8*len(training_set)):]
@@ -84,7 +84,7 @@ val_acc_log = []
 val_loss_log = []
 train_acc_log = []
 
-for nu_ep in range(100):
+for nu_ep in range(10):
     for batch in train_loader:
         if batch[0].size(0) != batch_size:
             continue
@@ -117,7 +117,8 @@ for nu_ep in range(100):
             print(pred_vals) 
         step += 1
     
-    if nu_ep%5==0:
+    #if nu_ep%1==0:
+    if step % 10000 == 0:
         lr *= 0.9
         opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
         torch.save(model.state_dict(), '/misc/vlgscratch2/LecunGroup/anant/nlp/model_%s.pth'%exp_name)
