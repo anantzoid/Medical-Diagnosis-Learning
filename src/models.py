@@ -9,7 +9,9 @@ class TextData(data.Dataset):
         super(TextData, self).__init__()
         self.data = data
     def __getitem__(self, index):
-        return (self.data[index]['text_index_sequence'].view(-1), self.data[index]['label'])
+
+        #return (self.data[index]['text'], self.data[index]['label'])
+        return (self.data[index]['text_index_sequence'], self.data[index]['label'])
     def __len__(self):
         return len(self.data)
 

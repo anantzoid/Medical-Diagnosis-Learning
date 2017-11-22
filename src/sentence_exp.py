@@ -1,9 +1,9 @@
-exp_name = 'bilstm2Layer_5label_adam_lrdecay'
+exp_name = 'collatepad_bilstm1Layer_5label_adam_lrdecay_1200seqlen'
 
 import torch
 use_cuda = torch.cuda.is_available()
 if use_cuda:
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
 multi_gpu = False#True
 
 # In[27]:
@@ -37,17 +37,17 @@ if analytics:
 
 PADDING = "<PAD>"
 UNKNOWN = "<UNK>"
-max_seq_length = 70
+max_seq_length = 500
 
 word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN, vocab_threshold=50)
-sentences_to_padded_index_sequences(word_to_ix, [training_set], max_seq_length, PADDING, UNKNOWN)
+sentences_to_padded_index_sequences(word_to_ix, training_set, max_seq_length, PADDING, UNKNOWN)
 
 
 # In[31]:
 
 
 from models import *
-batch_size = 128
+batch_size = 16
 num_workers = 4
 embed_dim = 100
 hidden_dim = 300
@@ -57,12 +57,9 @@ val_set = training_set[int(0.8*len(training_set)):]
 training_set = training_set[:int(0.8*len(training_set))]
 
 train_loader = torch.utils.data.DataLoader(dataset= TextData(training_set), batch_size=batch_size, shuffle=True, 
-                                                           num_workers=num_workers)
+                                                           num_workers=num_workers, collate_fn=sent_batch_collate)
 val_loader = torch.utils.data.DataLoader(dataset= TextData(val_set), batch_size=batch_size, shuffle=True, 
-                                                           num_workers=num_workers)
-
-
-# In[33]:
+                                                           num_workers=num_workers, collate_fn=sent_batch_collate)
 
 
 model = LSTMModel(vocab_size, embed_dim, hidden_dim, easy_label_map, batch_size, use_cuda)
@@ -84,7 +81,7 @@ val_acc_log = []
 val_loss_log = []
 train_acc_log = []
 
-for nu_ep in range(10):
+for nu_ep in range(100):
     for batch in train_loader:
         if batch[0].size(0) != batch_size:
             continue
@@ -100,7 +97,7 @@ for nu_ep in range(10):
         loss.backward()
         opti.step()
 
-        if step % 100 == 0:
+        if step % 10 == 0:
             model.eval()
             _, predicted = torch.max(x.data, 1)    
             train_acc = (predicted == y.data).sum() / float(batch[1].size(0))
@@ -113,12 +110,12 @@ for nu_ep in range(10):
             train_acc_log.append(train_acc)
             val_acc_log.append(val_acc)
             val_loss_log.append(val_loss)
-        if step % 1000 == 0:
+        if step % 100 == 0:
             print(pred_vals) 
         step += 1
     
-    #if nu_ep%1==0:
-    if step % 10000 == 0:
+    if nu_ep%20==0:
+    #if step % 10000 == 0:
         lr *= 0.9
         opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
         torch.save(model.state_dict(), '/misc/vlgscratch2/LecunGroup/anant/nlp/model_%s.pth'%exp_name)
