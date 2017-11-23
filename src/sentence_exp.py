@@ -1,4 +1,4 @@
-exp_name = 'collatepad_bilstm1Layer_5label_adam_lrdecay_1200seqlen'
+exp_name = 'summaries_50label_vocab50'
 
 import torch
 use_cuda = torch.cuda.is_available()
@@ -6,53 +6,68 @@ if use_cuda:
     torch.cuda.set_device(0)
 multi_gpu = False#True
 
-# In[27]:
-
-
 import sys
 import pickle
+import random
 from collections import Counter
-#sys.path.append('/home/pau/Medical-Diagnosis-Learning/src')
 sys.path.append('/home/ag4508/Medical-Diagnosis-Learning/src')
 from data_util import *
-from util_icu_train import get_labels
+from models import *
+#from util_icu_train import get_labels
 
-# easy_label_map = {"4019":0, "V290":1}
-# training_set = load_data_csv('../notes_sample.csv', easy_label_map)
+import csv    
+get_top_labels = lambda path: [row[0] for row in  csv.reader(open(path, "r"), delimiter=",")]
+#load_summaries = lambda path: [{'text':row[1], 'label':row[2].split(',') for row in  csv.reader(open(path, "r"), delimiter=",", quotechar='"')}]
+def load_summaries(path):
+    data = []
+    for row in  csv.reader(open(path, "r"), delimiter=",", quotechar='"'):
+        if row[1] == '':
+            continue
+        data.append({
+            'text': row[1],
+            'label': row[2].split(',')
+        })
+    return data
 
-easy_label_map = get_labels('/misc/vlgscratch2/LecunGroup/anant/nlp/labels.txt')
-training_set = load_data_csv('/misc/vlgscratch2/LecunGroup/anant/nlp/notes_sample_5class.csv', easy_label_map)
-#training_set = training_set[:1000]
+#easy_label_map = get_labels('/misc/vlgscratch2/LecunGroup/anant/nlp/labels.txt')
+#training_set = load_data_csv('/misc/vlgscratch2/LecunGroup/anant/nlp/notes_sample_5class.csv', easy_label_map)
+
+label_path = '../data/top50_labels.csv'
+easy_label_map = {i:_ for _,i in enumerate(get_top_labels(label_path))}
+
+data_path = '../data/summaries_labels.csv'
+training_set = load_summaries(data_path)
+
 analytics = False
 if analytics:
-    text = [_['text'] for _ in training_set]
-    lentext = [len(_['text']) for _ in training_set]
+    text = [_[0] for _ in training_set]
+    lentext = [len(_[0]) for _ in training_set]
     import numpy as np
+    print np.histogram(lentext, bins=[0,1,5,10,50,100,500,1000,5000])
     print text[np.argmax(lentext)]
     print np.mean(lentext)
     print np.max(lentext)
     print np.min(lentext)
-    print("FD of labels:", Counter([_['label'] for _ in training_set]))
+    print("FD of labels:", Counter([i for _ in training_set for i in _[1]]))
     exit()
 
+#training_set = training_set[:1000]
 PADDING = "<PAD>"
 UNKNOWN = "<UNK>"
 max_seq_length = 500
-
-word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN, vocab_threshold=50)
-sentences_to_padded_index_sequences(word_to_ix, training_set, max_seq_length, PADDING, UNKNOWN)
-
-
-# In[31]:
-
-
-from models import *
-batch_size = 16
+min_vocab_threshold = 50
+batch_size = 64
 num_workers = 4
 embed_dim = 100
 hidden_dim = 300
 lr = 1e-2
+num_epochs = 100
 
+word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN, vocab_threshold=min_vocab_threshold)
+sentences_to_padded_index_sequences(word_to_ix, training_set, max_seq_length, PADDING, UNKNOWN, easy_label_map)
+print "Vocab size: %d"%vocab_size
+
+random.shuffle(training_set)
 val_set = training_set[int(0.8*len(training_set)):]
 training_set = training_set[:int(0.8*len(training_set))]
 
@@ -64,7 +79,8 @@ val_loader = torch.utils.data.DataLoader(dataset= TextData(val_set), batch_size=
 
 model = LSTMModel(vocab_size, embed_dim, hidden_dim, easy_label_map, batch_size, use_cuda)
 opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
-crit = nn.CrossEntropyLoss()
+#crit = nn.CrossEntropyLoss()
+crit = nn.BCEWithLogitsLoss()
 
 if use_cuda:
     model.cuda()
@@ -81,13 +97,13 @@ val_acc_log = []
 val_loss_log = []
 train_acc_log = []
 
-for nu_ep in range(100):
+for nu_ep in range(num_epochs):
     for batch in train_loader:
         if batch[0].size(0) != batch_size:
             continue
         model.zero_grad()
         x = Variable(batch[0])
-        y = Variable(batch[1].view(-1))
+        y = Variable(batch[1])#.view(-1))
         if use_cuda:
             x, y = x.cuda(), y.cuda()
 
@@ -99,8 +115,9 @@ for nu_ep in range(100):
 
         if step % 10 == 0:
             model.eval()
-            _, predicted = torch.max(x.data, 1)    
-            train_acc = (predicted == y.data).sum() / float(batch[1].size(0))
+            #_, predicted = torch.max(x.data>0.5, 1)    
+            predicted = x.data > 0.5
+            train_acc = (predicted.float() == y.data).sum() / float(batch[1].size(0))
 
             val_acc, val_loss, pred_vals = evaluate(model, val_loader, batch_size, crit, use_cuda)
             model.train()        
@@ -110,11 +127,11 @@ for nu_ep in range(100):
             train_acc_log.append(train_acc)
             val_acc_log.append(val_acc)
             val_loss_log.append(val_loss)
-        if step % 100 == 0:
-            print(pred_vals) 
+        #if step % 100 == 0:
+        #    print(pred_vals) 
         step += 1
     
-    if nu_ep%20==0:
+    if nu_ep%10==0:
     #if step % 10000 == 0:
         lr *= 0.9
         opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -122,7 +139,7 @@ for nu_ep in range(100):
 
 
     f = open('/misc/vlgscratch2/LecunGroup/anant/nlp/results_%s.pkl'%exp_name, 'w')
-    pickle.dump({'step_log': step_log, 'loss_log': loss_log, 'val_loss_log': val_loss_log, 'val_loss_log': val_loss_log, 'train_acc_log': train_acc_log}, f)
+    pickle.dump({'step_log': step_log, 'loss_log': loss_log, 'val_loss_log': val_loss_log, 'val_loss_log': val_loss_log, 'train_acc_log': train_acc_log, 'val_acc_log': val_acc_log}, f)
     f.close()
 #import matplotlib.pyplot as plt
 #get_ipython().magic(u'matplotlib inline')

@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import re
 
+
 def extract_summary(text):
     newtext = ''
     if 'final diagnosis' in text or 'discharge diagnosis' in text:
@@ -69,10 +70,10 @@ def sent_batch_collate(batch):
         padded_str = [0]*(max_length-len(datum[0])) + datum[0]
         data_list.append(padded_str)
         label_list.append(datum[1])
-    return (torch.from_numpy(np.array(data_list)).long(), torch.from_numpy(np.array(label_list)).long())
+    return (torch.from_numpy(np.array(data_list)).long(), torch.from_numpy(np.array(label_list)).float())
    
 
-def sentences_to_padded_index_sequences(word_indices, dataset, max_seq_length, PADDING, UNKNOWN):
+def sentences_to_padded_index_sequences(word_indices, dataset, max_seq_length, PADDING, UNKNOWN, label_map):
     """
     Annotate datasets with feature vectors. Adding right-sided padding. 
     """
@@ -85,7 +86,10 @@ def sentences_to_padded_index_sequences(word_indices, dataset, max_seq_length, P
             else:
                 index = word_indices[UNKNOWN]
             example['text_index_sequence'][i] = index
-
+        label_onehot = np.zeros((len(label_map.keys())))
+        for la in example['label']:
+            label_onehot[label_map[la]] = 1
+        example['label'] = label_onehot
         '''
         example['text_index_sequence'] = torch.zeros(max_seq_length)
         token_sequence = tokenize(example['text'])
