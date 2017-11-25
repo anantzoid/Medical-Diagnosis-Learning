@@ -87,7 +87,7 @@ def extract_summary(text, inc_hist=True):
             newtext += text[text.index('discharge diagnosis'):]
     return newtext
 
-def load_data_csv(path, easy_label_map):
+def load_data_csv(path, label_map):
     data= []
     line = 0
     with open(path, "r") as csvf:
@@ -102,7 +102,7 @@ def load_data_csv(path, easy_label_map):
             _text = _text.split(".\n")
             for _t in _text:
                 if len(_t) > 5:
-                    data.append({'text':_t, 'label':easy_label_map[row[1]]})
+                    data.append({'text':_t, 'label':label_map[row[1]]})
     random.shuffle(data)
     print("# of data samples:%d"%len(data))
     return data
