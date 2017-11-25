@@ -24,7 +24,7 @@ use_cuda = torch.cuda.is_available()
 
 # In[ ]:
 
-
+'''
 notedata = []
 with open('../data/mimic/NOTEEVENTS.csv', 'r') as f:
     rea = csv.reader(f, delimiter=',', quotechar='"')
@@ -33,6 +33,7 @@ with open('../data/mimic/NOTEEVENTS.csv', 'r') as f:
         if row[6].lower() == "discharge summary":
             notedata.append([re.sub("\d", "d", row[-1]), row[2]])
 
+'''
 
 # In[7]:
 
@@ -111,8 +112,8 @@ data_path = '../data/summaries_labels.csv'
 training_set = load_summaries(data_path)
 
 random.shuffle(training_set)
-testset = training_set[:int(len(training_set)*0.9)]
-training_set = training_set[int(len(training_set)*0.9):]
+testset = training_set[int(len(training_set)*0.9):]
+training_set = training_set[:int(len(training_set)*0.9)]
 print("Size of train: %d"%len(training_set))
 
 # In[10]:
@@ -189,7 +190,7 @@ class Attend(nn.Module):
         self.lin = nn.Linear(hidden_dim, hidden_dim)
         
         self.context = Variable(torch.FloatTensor(hidden_dim))        
-        stdv = 1. / math.sqrt(self.context.size(1))
+        stdv = 1. / math.sqrt(self.context.size(0))
         self.context.data.uniform_(-stdv, stdv)
         
         self.sm = nn.Softmax()
@@ -253,19 +254,27 @@ if use_cuda:
     sentattention.cuda()
     clf.cuda()
     crit.cuda()
-
+    wordattention.context = wordattention.context.cuda()
+    sentattention.context = sentattention.context.cuda()
 
 # In[13]:
 print("Starting training...")
 step = 0
 for n_e in range(num_epochs):
-    for batch in enumerate(train_loader):
+    for batch in train_loader:
+        model.zero_grad()
+        wordattention.zero_grad()
+        sent_rnn.zero_grad()
+        sentattention.zero_grad()
+        clf.zero_grad()
+
         batch_x = Variable(batch[0])
         batch_y = Variable(batch[1])        
             
         _hidden = model.init_hidden()
+        sent_hidden = sent_rnn.init_hidden()
         if use_cuda:
-            batch_x, batch_y, _hidden = batch_x.cuda(), batch_y.cuda(), _hidden.cuda()
+            batch_x, batch_y, _hidden, sent_hidden = batch_x.cuda(), batch_y.cuda(), _hidden.cuda(), sent_hidden.cuda()
         #print("raw size:", batch_x.size())
         x, hidden = model(batch_x, _hidden)
         #print("word rnn op size:", x.size())
@@ -276,7 +285,6 @@ for n_e in range(num_epochs):
         sentence_reprs = wordattention(x, batch_x.size(1)) # batch_size x sent_size x 2*hidden
         #print(sentence_reprs.size())
         #print("============")    
-        sent_hidden = sent_rnn.init_hidden()
         sent_op, sent_hidden = sent_rnn(sentence_reprs, sent_hidden)
         #print("sent rnn op size:", sent_op.size())
         sent_op = sent_op.contiguous().view(batch_x.size(1), batch_size, -1) # sent_size x batch_size x 2*hidden
@@ -292,20 +300,20 @@ for n_e in range(num_epochs):
                 batch_x = Variable(batch[0])
                 batch_y = Variable(batch[1])
                 _hidden = model.init_hidden()
+                sent_hidden = sent_rnn.init_hidden()
                 if use_cuda:
-                    batch_x, batch_y, _hidden = batch_x.cuda(), batch_y.cuda(), _hidden.cuda()
+                    batch_x, batch_y, _hidden, sent_hidden = batch_x.cuda(), batch_y.cuda(), _hidden.cuda(), sent_hidden.cuda()
                 
                 x, hidden = model(batch_x, _hidden)
                 x = x.contiguous().view(batch_x.size(2), batch_x.size(0)*batch_x.size(1), -1)
                 sentence_reprs = wordattention(x, batch_x.size(1))
-                sent_hidden = sent_rnn.init_hidden()
                 sent_op, sent_hidden = sent_rnn(sentence_reprs, sent_hidden)
                 sent_op = sent_op.contiguous().view(batch_x.size(1), batch_size, -1)
                 sent_att = sentattention(sent_op, 1)
                 sent_att = sent_att.contiguous().view(batch_size, 4*hidden_dim)
                 pred_prob = clf(sent_att)
-                loss = crit(pred_prob, batch_y)
-                val_loss.append(loss.data[0])
+                val_loss = crit(pred_prob, batch_y)
+                val_loss.append(val_loss.data[0])
             print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f"%(n_e, step, loss.data[0], np.mean(val_loss)))
         step += 1
         
