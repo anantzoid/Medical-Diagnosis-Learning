@@ -79,7 +79,6 @@ Issues:
 		* 1851344 notes, 59652 discharge notes, ratio: 3.22209162641
 		* Average length of note (chars): 58733.70
 		* Types of notes: {'Nursing/other': 821258, 'ECG': 138190, 'Radiology': 378920, 'Nursing': 220758, 'Nutrition': 9378, 'Discharge summary': 59652, 'Rehab Services': 5409, 'Consult': 98, 'Echo': 34037, 'Physician ': 140100, 'Respiratory ': 31667, 'Social Work': 2612, 'General': 8209, 'Pharmacy': 102, 'Case Management ': 954}
-
 	* After selection and text extraction
 		* 'No. of data points:', 58361
 		* 'Data points with no notes:', 0.0
