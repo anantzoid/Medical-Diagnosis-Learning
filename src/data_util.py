@@ -134,7 +134,7 @@ def sent_batch_collate(batch):
     max_length = np.max([len(_[0]) for _ in batch])
     # padding
     for datum in batch:
-        padded_str = [0]*(max_length-len(datum[0])) + datum[0]
+        padded_str = datum[0] + [0]*(max_length-len(datum[0]))
         data_list.append(padded_str)
         label_list.append(datum[1])
     return (torch.from_numpy(np.array(data_list)).long(), torch.from_numpy(np.array(label_list)).float())
@@ -146,8 +146,8 @@ def sentences_to_padded_index_sequences(word_indices, dataset, max_seq_length, P
     """
     for example in dataset:
         token_sequence = tokenize(example['text'])
-        example['text_index_sequence'] = [0]*(len(token_sequence))
-        for i in range(len(token_sequence)):
+        example['text_index_sequence'] = [0]*(min(len(token_sequence), max_seq_length))
+        for i in range(len(example['text_index_sequence'])):
             if token_sequence[i] in word_indices:
                 index = word_indices[token_sequence[i]]
             else:
