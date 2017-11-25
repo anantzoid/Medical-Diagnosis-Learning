@@ -116,6 +116,7 @@ testset = training_set[int(len(training_set)*0.9):]
 training_set = training_set[:int(len(training_set)*0.9)]
 print("Size of train: %d"%len(training_set))
 
+
 # In[10]:
 
 
@@ -127,7 +128,7 @@ batch_size = 32
 num_workers = 4
 embed_dim = 50
 hidden_dim = 100
-lr = 1e-3
+lr = 1e-2
 num_epochs = 10
 
 
@@ -260,8 +261,12 @@ if use_cuda:
 # In[13]:
 print("Starting training...")
 step = 0
+train_loss_mean = []
 for n_e in range(num_epochs):
     for batch in train_loader:
+        if batch[0].size(0) != batch_size:
+            continue
+
         model.zero_grad()
         wordattention.zero_grad()
         sent_rnn.zero_grad()
@@ -294,9 +299,15 @@ for n_e in range(num_epochs):
         loss = crit(pred_prob, batch_y)
         loss.backward()
         opti.step()
+        train_loss_mean.append(loss.data[0])
         if step%100 ==0:
-            val_loss = []
+            #print("train preds")
+            #print(pred_prob[0])
+            val_loss_mean = []
             for val_batch in val_loader:
+                if batch[0].size(0) != batch_size:
+                    continue
+
                 batch_x = Variable(batch[0])
                 batch_y = Variable(batch[1])
                 _hidden = model.init_hidden()
@@ -313,9 +324,16 @@ for n_e in range(num_epochs):
                 sent_att = sent_att.contiguous().view(batch_size, 4*hidden_dim)
                 pred_prob = clf(sent_att)
                 val_loss = crit(pred_prob, batch_y)
-                val_loss.append(val_loss.data[0])
-            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f"%(n_e, step, loss.data[0], np.mean(val_loss)))
+                val_loss_mean.append(val_loss.data[0])
+            #print("===========")
+            #print(batch_y[0])
+            #print(val_loss_mean[:10])
+            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f"%(n_e, step, np.mean(train_loss_mean), np.mean(val_loss_mean)))
+            train_loss_mean = []
         step += 1
+    print("===========")
+    print("val preds")
+    print(pred_prob[0])
         
 
 
