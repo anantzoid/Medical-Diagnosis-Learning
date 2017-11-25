@@ -16,8 +16,12 @@ from models import *
 #from util_icu_train import get_labels
 
 import csv    
-get_top_labels = lambda path: [row[0] for row in  csv.reader(open(path, "r"), delimiter=",")]
+#get_top_labels = lambda path: [row[0] for row in  csv.reader(open(path, "r"), delimiter=",")]
 #load_summaries = lambda path: [{'text':row[1], 'label':row[2].split(',') for row in  csv.reader(open(path, "r"), delimiter=",", quotechar='"')}]
+def get_top_labels(path):
+    labels = [row[0] for row in  csv.reader(open(path, "r"), delimiter=",")]
+    return {i:_ for _,i in enumerate(labels)}
+
 def load_summaries(path):
     data = []
     for row in  csv.reader(open(path, "r"), delimiter=",", quotechar='"'):
@@ -29,11 +33,11 @@ def load_summaries(path):
         })
     return data
 
-#easy_label_map = get_labels('/misc/vlgscratch2/LecunGroup/anant/nlp/labels.txt')
-#training_set = load_data_csv('/misc/vlgscratch2/LecunGroup/anant/nlp/notes_sample_5class.csv', easy_label_map)
+#label_map = get_labels('/misc/vlgscratch2/LecunGroup/anant/nlp/labels.txt')
+#training_set = load_data_csv('/misc/vlgscratch2/LecunGroup/anant/nlp/notes_sample_5class.csv', label_map)
 
 label_path = '../data/top50_labels.csv'
-easy_label_map = {i:_ for _,i in enumerate(get_top_labels(label_path))}
+label_map = get_top_labels(label_path) 
 
 data_path = '../data/summaries_labels.csv'
 training_set = load_summaries(data_path)
@@ -64,7 +68,7 @@ lr = 1e-2
 num_epochs = 100
 
 word_to_ix, vocab_size, word_counter = build_dictionary([training_set], PADDING, UNKNOWN, vocab_threshold=min_vocab_threshold)
-sentences_to_padded_index_sequences(word_to_ix, training_set, max_seq_length, PADDING, UNKNOWN, easy_label_map)
+sentences_to_padded_index_sequences(word_to_ix, training_set, max_seq_length, PADDING, UNKNOWN, label_map)
 print "Vocab size: %d"%vocab_size
 
 random.shuffle(training_set)
@@ -77,7 +81,7 @@ val_loader = torch.utils.data.DataLoader(dataset= TextData(val_set), batch_size=
                                                            num_workers=num_workers, collate_fn=sent_batch_collate)
 
 
-model = LSTMModel(vocab_size, embed_dim, hidden_dim, easy_label_map, batch_size, use_cuda)
+model = LSTMModel(vocab_size, embed_dim, hidden_dim, label_map, batch_size, use_cuda)
 opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 #crit = nn.CrossEntropyLoss()
 crit = nn.BCEWithLogitsLoss()
