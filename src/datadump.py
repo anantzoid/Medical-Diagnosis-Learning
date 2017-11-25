@@ -9,10 +9,12 @@ import json
 import pickle
 import numpy as np
 def build_notes_dump(notes_path, data):
-    with open(notes_path, 'rb') as csvf:
+    with open(notes_path, 'r') as csvf:
         csvreader = csv.reader(csvf, delimiter=',', quotechar='"')
         skip_header = next(csvreader)
+        num = 0
         for row in csvreader:
+            num += 1
             if data.get(row[2]):
                 # Skipping is ISERROR
                 if isinstance(row[-2], int) and int(row[-2]) == 1:
@@ -26,10 +28,12 @@ def build_notes_dump(notes_path, data):
                     data[row[2]]['notes'] = [note_dict]
                 else:
                     data[row[2]]['notes'].append(note_dict)
+            if num % 10000 == 0:
+                print("Processed {} rows".format(num))
     return data
 
 def get_diagnosis(label_path):
-    with open(label_path, 'rb') as csvf:
+    with open(label_path, 'r') as csvf:
         csvreader = csv.reader(csvf, delimiter=',', quotechar='"')
         skip_header = next(csvreader)
         icd = {}
@@ -43,14 +47,14 @@ def get_diagnosis(label_path):
             else:
                 icd[row[2]]['labels']['icd'].append(row[-1])
                 icd[row[2]]['labels']['seq_no'].append(row[-2])
-    return icd 
+    return icd
 
 def make_data_dump():
-    base_path = '/media/disk3/disk3/mimic3'
+    base_path = '/Volumes/My Passport Ultra/medical_data'
     diagnosis = get_diagnosis(os.path.join(base_path, 'DIAGNOSES_ICD.csv'))
     diagnosis = build_notes_dump(os.path.join(base_path, 'NOTEEVENTS.csv'), diagnosis)
 
-    with open('/media/disk3/disk3/notes_dump.pkl', 'w') as f:
+    with open('/Users/lauragraesser/Documents/NYU_Courses/medical_data/notes_dump.pkl', 'w') as f:
         pickle.dump(diagnosis, f)
     f.close()
 
@@ -72,8 +76,9 @@ def get_data_stats():
         if data[_].get('notes'):
             for note in data[_]['notes']:
                 nt.append(note["note_type"])
-    print dict(Counter(nt).most_common(30))
+    print(dict(Counter(nt).most_common(30)))
     return None
 
 if __name__ == "__main__":
+    make_data_dump()
     get_data_stats()
