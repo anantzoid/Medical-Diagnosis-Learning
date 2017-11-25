@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 from collections import Counter
 
-base_path = '/misc/vlgscratch2/LecunGroup/anant/nlp'
+base_path = '/Users/lauragraesser/Documents/NYU_Courses/medical_data'
 from sklearn.feature_extraction import stop_words
 import re
 import random
@@ -13,6 +13,7 @@ import random
 import time
 import sklearn
 import pprint
+from data_util import *
 
 global_time = None
 def gettime():
@@ -47,10 +48,9 @@ def read_fork(data, op_queue):
     op_queue.put(rawdata)
 
 def read_data_dump(data_path):
-    with open(data_path, 'r') as f:
+    with open(data_path, 'rb') as f:
         data = pickle.load(f)
-    data = {k:data[k] for k in data.keys()[:10000]}
-
+    data = {k:data[k] for k in list(data.keys())[:10000]}
     import multiprocessing
     num_workers = 10
     output = multiprocessing.Queue()
@@ -61,8 +61,8 @@ def read_data_dump(data_path):
         end_ind = st_ind+batch_size
         if _ == num_workers-1 and end_ind < len(data.keys()):
             end_ind = len(data.keys())
-        batch_data = {idx: data[idx] for idx in data.keys()[st_ind:end_ind]}
-        print len(batch_data.keys())
+        batch_data = {idx: data[idx] for idx in list(data.keys())[st_ind:end_ind]}
+        print(len(batch_data.keys()))
         processes.append(multiprocessing.Process(target=read_fork, args=(
                                             batch_data,  output)))
     for p in processes:
@@ -106,7 +106,7 @@ def get_vocab(data):
                 vocab.extend(note['note'])
             else:
                 vocab.extend(note)
-    print vocab[:200]
+    # print(vocab[:200])
     vocab = [_[0] for _ in list(Counter(vocab).most_common(1000))]
     return vocab
 
@@ -114,10 +114,20 @@ def filter_data_by_vocab(data, vocab):
     for _,key in enumerate(data):
         for i, note in enumerate(key['notes']):
             if isinstance(key['notes'][i], dict):
-                data[_]['notes'][i]['note'] = " ".join([word   for word in key['notes'][i]['note'] if word in vocab])
+                data[_]['notes'][i]['note'] = " ".join([word for word in key['notes'][i]['note'] if word in vocab])
             else:
                 data[_]['notes'][i]['note'] = " ".join([word if word in vocab else 'unknown' for word in key['notes'][i]['note']])
     return data
+
+def count_unk(data):
+    num_toks = 0
+    num_unks = 0
+    for _,key in enumerate(data):
+        for i, note in enumerate(key['notes']):
+            num_toks += sum([1 for word in key['notes'][i]['note']])
+            num_unks += sum([1 for word in key['notes'][i]['note'] if word is 'unknown'])
+    prop_unks = (num_unks * 1.) / (num_toks * 1.) * 100
+    print("{} tokens, {} unks, {:.2f}% unks".format(num_toks, num_unks, prop_unks))
 
 def filter_embeddings(vocab):
     pretrained = read_embeddings(os.path.join(base_path, 'ri-3gram-400-tsv/vocab.tsv'),
@@ -137,36 +147,55 @@ if __name__ == "__main__":
     num_labels = 5
     #reading -> sort by date, remove de-id, puncts, tokenize , stopwords
     print("Reading data")
-    rawdata = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
+    rawdata = read_data_dump(os.path.join(base_path, 'notes_dump_small.pkl'))
     print("data size:", len(rawdata))
     print("Filtering labels")
     labels = filter_labels(rawdata, num_labels)
     f = open(os.path.join(base_path, 'labels.txt'), 'w')
     for la in labels:
-        print >>f, la
+        # print >>f, la
+        f.write(la + '\n')
     f.close()
     print("num labels:", len(labels))
+    print("Selected labels: {}".format(labels))
     print("filter_data_by_labels")
-    print("Raw data eg: ")
-    pprint.pprint(rawdata[0])
+    print("Num data points: {}".format(len(rawdata)))
     rawdata = filter_data_by_labels(rawdata, labels)
-    print("Raw data filtered by labels: ")
-    pprint.pprint(rawdata[0])
     print("data size:", len(rawdata))
     print("vocab...")
     vocab = get_vocab(rawdata)
     print("Vocab size:", len(vocab))
+    print(vocab[:200])
+    print('postoperative' in vocab, 'amiodarone' in vocab, 'auscultation' in vocab)
     f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'w')
     for v in vocab:
-        print >>f, v
+        f.write(v + '\n')
     f.close()
+    num_to_check = 200
+    raw_lengths = []
+    for i in range(min(num_to_check, len(rawdata))):
+        raw_lengths.append(count_length(rawdata[i]))
+    # pprint.pprint(rawdata[48])
     print("filter_data_by_vocab")
     rawdata = filter_data_by_vocab(rawdata, vocab)
-    print("Raw data filetered by vocab: ")
-    pprint.pprint(rawdata[0])
-    f = open(os.path.join(base_path, 'notes_dump_cleaned_puncts.pkl'), 'w')
+    print("Counting unks...")
+    count_unk(rawdata)
+    print("Raw data filtered by vocab: ")
+    print("Lengths ratio...")
+    processed_lengths = []
+    for i in range(min(num_to_check, len(rawdata))):
+        processed_lengths.append(count_length(rawdata[i]))
+    ratio = []
+    for i in range(len(processed_lengths)):
+        ratio.append(processed_lengths[i] / (raw_lengths[i] * 1.))
+    print("Avg ratio of lengths: {} min: {} max: {} argmax: {} std dev: {}".format(
+        np.mean(ratio), min(ratio), max(ratio), np.argmax(ratio), np.std(ratio)))
+    print("Average raw length: {}, average processed length: {}".format(
+        np.mean(raw_lengths), np.mean(processed_lengths)))
+    f = open(os.path.join(base_path, 'notes_dump_cleaned_puncts.pkl'), 'wb')
     pickle.dump({'data':rawdata}, f)
     f.close()
+
     #print "filter_embeddings"
 
     #f = open(os.path.join(base_path, 'filtered_vocab_10000.txt'), 'r')
