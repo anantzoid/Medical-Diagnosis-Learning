@@ -2,6 +2,21 @@ import re
 import csv
 from collections import Counter
 import editdistance
+import random
+
+def split_hadm_ids(diagnosis):
+    training = []
+    valid = []
+    test = []
+    for key in diagnosis:
+        num = random.random()
+        if num < 0.8:
+            training.append(key)
+        elif num < 0.9:
+            valid.append(key)
+        else:
+            test.append(key)
+    return (training, valid, test)
 
 # def tokenize(data):
 #     for d in data:

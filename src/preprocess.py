@@ -4,6 +4,7 @@ import numpy as np
 from collections import Counter
 import argparse
 import pprint
+import pickle
 from preprocess_helpers import *
 from data_util import get_data_stats
 
@@ -22,8 +23,10 @@ parser.add_argument('--preprocessing', type=str, default='replace numbers,replac
                     help='What preprocessing to do on the text')
 parser.add_argument('--vocabcountthreshold', type=int, default=10,
                     help='Only include words with count > threshold in vocabulary')
-parser.add_argument('--mapunk', type=bool, default=False,
+parser.add_argument('--mapunk', type=int, default=0,
                     help='Whether to map OOV words to words in vocab using edit dist')
+parser.add_argument('--generatesplits', type=int, default=0,
+                    help='Whether to generate a new split of the data for train-valid-test')
 args = parser.parse_args()
 print(args)
 print()
@@ -53,6 +56,13 @@ print("Total number of HADM_ID: {}\n".format(len(diagnosis)))
 print("Example: raw data")
 print(diagnosis['178393'])
 print()
+if args.generatesplits:
+    print("Generating HADM ID splits...")
+    splits = split_hadm_ids(diagnosis)
+    with open(os.path.join(base_path, "hadm_id_train_valid_test_splits.pkl"), 'wb') as f:
+        pickle.dump(splits, f)
+splits = pickle.load(open(os.path.join(base_path, "hadm_id_train_valid_test_splits.pkl"), 'rb'))
+print("Length train: {} valid: {} test: {}".format(len(splits[0]),len(splits[1]),len(splits[2])))
 top_diagnoses = get_top_diagnoses(diagnosis, num_labels)
 print("Top diagnoses: {}\n".format(top_diagnoses))
 processed_diagnoses = remove_diagnoses_not_intopK(diagnosis, top_diagnoses)
@@ -85,4 +95,8 @@ print(data[1])
 print()
 print(data[2])
 print()
+# tokenize
+# write to files
 write_to_file(os.path.join(base_path, 'processed_data.csv'), data)
+# Load file
+# Vocabify and generate training valid and test splits
