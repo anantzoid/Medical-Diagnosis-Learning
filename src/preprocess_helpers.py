@@ -1,13 +1,30 @@
 import re
 import csv
 from collections import Counter
+import editdistance
+
+# def tokenize(data):
+#     for d in data:
+#         if 'notes' in d:
+#             new_notes = []
+#             for i, note in enumerate(d['notes']):
+#                 n = tokenize(note['note'])
+
+def extract_vocab(data, threshold):
+    pass
+
+def find_closest_word(word, vocab):
+    pass
+
+def vocabify_text(data, vocab):
+    pass
 
 def replace_numbers(text):
     text = re.sub("[0-9]", "d", text)
     return text
 
 def replace_break(text):
-    text = re.sub('\\n|\s+|[^\w\s]', ' ', text).replace('  ', ' ')
+    text = re.sub('\\n', ' ', text).replace('  ', ' ')
     return text
 
 function = {'replace numbers' : replace_numbers,

@@ -51,21 +51,21 @@ map_unk_using_edit_dist = args.mapunk # Whether to map OOV words to words in voc
 diagnosis = get_diagnosis(os.path.join(base_path, 'DIAGNOSES_ICD.csv'), ICD_code_length)
 print("Total number of HADM_ID: {}\n".format(len(diagnosis)))
 print("Example: raw data")
-print(diagnosis['172335'])
+print(diagnosis['178393'])
 print()
 top_diagnoses = get_top_diagnoses(diagnosis, num_labels)
 print("Top diagnoses: {}\n".format(top_diagnoses))
 processed_diagnoses = remove_diagnoses_not_intopK(diagnosis, top_diagnoses)
 print("Example after processing ICD codes")
-print(processed_diagnoses['172335'])
+print(processed_diagnoses['178393'])
 print()
 processed_diagnoses = remove_blank_examples(processed_diagnoses)
 print("Total number of HADM_ID after ICD processing: {}\n".format(len(processed_diagnoses)))
 try:
     print("Example after removing blanks")
-    print(processed_diagnoses['172335'])
+    print(processed_diagnoses['178393'])
 except:
-    print("No key after processing: 172335")
+    print("No key after processing: 178393")
 print()
 
 # Load notes data and process
