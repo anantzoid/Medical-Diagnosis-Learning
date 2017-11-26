@@ -2,6 +2,17 @@ import re
 import csv
 from collections import Counter
 
+def replace_numbers(text):
+    text = re.sub("[0-9]", "d", text)
+    return text
+
+def replace_break(text):
+    text = re.sub('\\n|\s+|[^\w\s]', ' ', text).replace('  ', ' ')
+    return text
+
+function = {'replace numbers' : replace_numbers,
+            'replace break'   : replace_break}
+
 def get_diagnosis(label_path, icd_length):
     with open(label_path, 'r') as csvf:
         csvreader = csv.reader(csvf, delimiter=',', quotechar='"')
@@ -35,6 +46,13 @@ def remove_diagnoses_not_intopK(diagnoses, top_diagnoses):
         diagnoses[key]['labels']['icd'] = new_icds
         diagnoses[key]['labels']['seq_no'] = new_seq_no
     return diagnoses
+
+def remove_blank_examples(diagnoses):
+    new_diagnoses = {}
+    for key in diagnoses:
+        if len(diagnoses[key]['labels']['icd']) != 0:
+            new_diagnoses[key] = diagnoses[key]
+    return new_diagnoses
 
 def select_note_types(data, note_types):
     for d in data:
@@ -81,7 +99,90 @@ def extract_subset_of_note(text, inc_history=True, diagnosis_short=True):
                 newtext += text[text.index('discharge diagnosis'):]
     return newtext
 
+def process_text(data, note_content, preprocessing):
+    flag = True
+    for key in data:
+        if 'notes' in data[key]:
+                for i, note in enumerate(data[key]['notes']):
+                    if i == 0 and flag:
+                        print("EXAMPLE NOTE PROCESSING...")
+                        print("Original note")
+                        print(note)
+                        print()
+                    if note_content == 1:
+                        n = note['note'].lower()
+                    elif note_content == 2:
+                        n = extract_subset_of_note(note['note'], inc_history=False, diagnosis_short=True)
+                    elif note_content == 3:
+                        n = extract_subset_of_note(note['note'], inc_history=False, diagnosis_short=False)
+                    elif note_content == 4:
+                        n = extract_subset_of_note(note['note'], inc_history=True, diagnosis_short=False)
+                    else:
+                        print("Error, unrecognised preprocessing step, doing nothing")
+                        n = note['note']
+                    if i == 0 and flag:
+                        print("Note after text selection")
+                        print(n)
+                        print()
+                    for p in preprocessing:
+                        n = function[p](n)
+                    if i == 0 and flag:
+                        print("Note after text processing")
+                        print(n)
+                        print()
+                    data[key]['notes'][i]['note'] = n
+                    flag = False
+    return data
 
-def replace_numbers(text):
-    text = re.sub('[0-9]', 'd', text)
-    return text
+def build_notes(notes_path, data, note_types):
+    with open(notes_path, 'r') as csvf:
+        csvreader = csv.reader(csvf, delimiter=',', quotechar='"')
+        skip_header = next(csvreader)
+        num = 0
+        num_included = 0
+        for row in csvreader:
+            num += 1
+            if data.get(row[2]):
+                # Skipping is ISERROR
+                if isinstance(row[-2], int) and int(row[-2]) == 1:
+                    continue
+                num_included += 1
+                if row[6].lower() in note_types:
+                    note_dict = {"note_type": row[6],
+                                "description": row[7],
+                                "note": row[-1],
+                                "date": row[3]
+                                }
+                    if data[row[2]].get('notes') is None:
+                        data[row[2]]['notes'] = [note_dict]
+                    else:
+                        data[row[2]]['notes'].append(note_dict)
+            if num % 100000 == 0:
+                print("Processed {} rows".format(num))
+        print("Number of HADM ID with notes added: {}".format(num_included))
+    return data
+
+def convert_format(data):
+    new_data = []
+    for key in data:
+        datapoint = []
+        if 'notes' in data[key]:
+            for note in data[key]['notes']:
+                if len(note['note']) > 5:
+                    if len(datapoint) == 0:
+                        datapoint.append(key)
+                        datapoint.append(note['note'])
+                        icd_str = str(" ".join([icd for icd in data[key]['labels']['icd']]))
+                        datapoint.append(icd_str)
+                    else:
+                        datapoint[1] += ". " + note['note']
+        if len(datapoint) != 0:
+            new_data.append(datapoint)
+    return new_data
+
+def write_to_file(filename, data):
+    f = open(filename, 'w')
+    for d in data:
+        f.write(d[0] + ',' + d[1] + ',' + d[2] + '\n')
+    f.close()
+    print("Data written to {}".format(filename))
