@@ -67,6 +67,8 @@ if args.generatesplits:
 splits = pickle.load(open(os.path.join(base_path, "hadm_id_train_valid_test_splits.pkl"), 'rb'))
 print("Length train: {} valid: {} test: {}".format(len(splits[0]),len(splits[1]),len(splits[2])))
 top_diagnoses = get_top_diagnoses(diagnosis, num_labels)
+with open(os.path.join(base_path, "labels.pkl"), 'wb') as f:
+    pickle.dump(top_diagnoses, f)
 print("Top diagnoses: {}\n".format(top_diagnoses))
 processed_diagnoses = remove_diagnoses_not_intopK(diagnosis, top_diagnoses)
 print("Example after processing ICD codes")
