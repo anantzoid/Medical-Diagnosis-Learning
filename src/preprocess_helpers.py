@@ -3,6 +3,24 @@ import csv
 from collections import Counter
 import editdistance
 import random
+import spacy
+from spacy.lang.en import English
+nlp = spacy.load("en")
+
+def split_data(data, splits):
+    train = []
+    valid = []
+    test = []
+    for d in data:
+        if d[0] in splits[0]:
+            train.append(d)
+        elif d[0] in splits[1]:
+            valid.append(d)
+        elif d[0] in splits[2]:
+            test.append(d)
+        else:
+            print("ERROR, HADM ID not in splits")
+    return (train, valid, test)
 
 def split_hadm_ids(diagnosis):
     training = []
@@ -18,21 +36,50 @@ def split_hadm_ids(diagnosis):
             test.append(key)
     return (training, valid, test)
 
-# def tokenize(data):
-#     for d in data:
-#         if 'notes' in d:
-#             new_notes = []
-#             for i, note in enumerate(d['notes']):
-#                 n = tokenize(note['note'])
+def tokenize_by_sent(data):
+    for i, d in enumerate(data):
+        n = nlp(d[1])
+        n = [sent.string.strip().lower() for sent in n.sents]
+        n = [[str(tok) for tok in nlp.tokenizer(sent)] for sent in n]
+        d[1] = n
+        if i % 500 == 0:
+            print("Tokenized {} notes".format(i))
+    return data
 
-def extract_vocab(data, threshold):
-    pass
+def extract_vocab(train_data, threshold):
+    vocab = []
+    for d in data:
+        note = d[1]
+        for sent in note:
+            vocab.extend(sent)
+    counts = [_ for _ in list(Counter(vocab)) if _[1] > 5]
+    print(counts[:25])
+    return counts
 
 def find_closest_word(word, vocab):
-    pass
+    dist = []
+    for v in vocab:
+        d = editdistance(word, v)
+        dist.append((v,d))
+    dist = sorted(dist, key=lambda x: x[1])
+    print(dist[:5])
+    return dist[0[0]]
 
-def vocabify_text(data, vocab):
-    pass
+def vocabify_text(data, vocab, mapunk):
+    for i, d in enumerate(data):
+        note = d[1]
+        if mapunk:
+            n = [[tok for tok in sent if tok in vocab else find_closest_word(tok, vocab)] for sent in n]
+        else:
+            n = [[tok for tok in sent if tok in vocab else 'unknown'] for sent in n]
+        d[1] = n
+        if i % 500 == 0:
+            print("Vocabified {} notes".format(i))
+    return data
+
+def remove_brackets(text):
+    text = re.sub('\[\*\*.*\*\*\]', ' ', text).replace('  ', ' ')
+    return text
 
 def replace_numbers(text):
     text = re.sub("[0-9]", "d", text)
@@ -43,7 +90,8 @@ def replace_break(text):
     return text
 
 function = {'replace numbers' : replace_numbers,
-            'replace break'   : replace_break}
+            'replace break'   : replace_break,
+            'remove brackets' : remove_brackets}
 
 def get_diagnosis(label_path, icd_length):
     with open(label_path, 'r') as csvf:

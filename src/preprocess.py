@@ -19,9 +19,9 @@ parser.add_argument('--notestypes', type=str, default='discharge summary',
                     help='Types of notes to include')
 parser.add_argument('--notescontent', type=int, default=2,
                     help='What part of the note to include')
-parser.add_argument('--preprocessing', type=str, default='replace numbers,replace break',
+parser.add_argument('--preprocessing', type=str, default='remove brackets,replace numbers,replace break',
                     help='What preprocessing to do on the text')
-parser.add_argument('--vocabcountthreshold', type=int, default=10,
+parser.add_argument('--vocabcountthreshold', type=int, default=5,
                     help='Only include words with count > threshold in vocabulary')
 parser.add_argument('--mapunk', type=int, default=0,
                     help='Whether to map OOV words to words in vocab using edit dist')
@@ -95,8 +95,29 @@ print(data[1])
 print()
 print(data[2])
 print()
-# tokenize
+# split datasets
+train_data, valid_data, test_data = split_data(data, splits)
+print("Length of split data: train: {}, valid: {}, test: {}".format(
+    len(train_data), len(valid_data), len(test_data)
+))
+# Tokenize
+train_data = tokenize_by_sent(train_data)
+valid_data = tokenize_by_sent(valid_data)
+test_data = tokenize_by_sent(test_data)
+print("EXAMPLES AFTER TOKENIZATION")
+print(len(train_data[0][1]))
+print(train_data[0])
+print()
+print(len(train_data[1][1]))
+print(train_data[1])
+print()
+print(len(train_data[2][1]))
+print(train_data[2])
+print()
+
 # write to files
-write_to_file(os.path.join(base_path, 'processed_data.csv'), data)
+# write_to_file(os.path.join(base_path, 'train_data_allvocab.csv'), train_data)
+# write_to_file(os.path.join(base_path, 'valid_data_allvocab.csv'), valid_data)
+# write_to_file(os.path.join(base_path, 'test_data_allvocab.csv'), test_data)
 # Load file
 # Vocabify and generate training valid and test splits
