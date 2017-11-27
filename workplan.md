@@ -32,7 +32,7 @@ Objective: Use all the notes created during a each admission (unqiue hadm_id) to
 - 12/17 (due): Paper writeup
 
 ### Update Log
-- 11/13: MIMIC3 encounters per patient is confined to 2 encounter on average. Direct mapping of ICD9 codes in Exp. 1 didn't help the network in learning much. 
+- 11/13: MIMIC3 encounters per patient is confined to 2 encounter on average. Direct mapping of ICD9 codes in Exp. 1 didn't help the network in learning much.
 Issues:
 	* <pad> and <unk> tokens weren't there in the pretrained-set
 	* There was too much padding in each sequence since max_seq_length in each batch would be around 10 or something.
@@ -64,8 +64,25 @@ Issues:
 	* Choose top-k labels accdn. to freq. dist.
 	* Filter the data accdn. to these labels and choose top vocab list.
 	* Save a filtered list of pre-trained embeddings accdn to new vocab list.
-	
+
 	* **Note**:
 		* Might need a better tokenizer. Encountering words like patientdesatted & patientazithromycin.
 		* After filtering, a note might just containe only 'unknown' tokens.
 		* For label, only icd9 in seq_num 0 is taken.
+
+
+- 11/25: Stats for notes per once history of present illness and discharge diagnosis has been extracted:
+	* Before selection and text extraction
+		* 'No. of data points:', 58976
+		* 'Data points with no notes:', 615
+		* 'Average No. of notes per Hadm_id:', 31.391481280520889
+		* 1851344 notes, 59652 discharge notes, ratio: 3.22209162641
+		* Average length of note (chars): 58733.70
+		* Types of notes: {'Nursing/other': 821258, 'ECG': 138190, 'Radiology': 378920, 'Nursing': 220758, 'Nutrition': 9378, 'Discharge summary': 59652, 'Rehab Services': 5409, 'Consult': 98, 'Echo': 34037, 'Physician ': 140100, 'Respiratory ': 31667, 'Social Work': 2612, 'General': 8209, 'Pharmacy': 102, 'Case Management ': 954}
+	* After selection and text extraction
+		* 'No. of data points:', 58361
+		* 'Data points with no notes:', 0.0
+		* 'Average No. of notes per Hadm_id:', 1.0221209369270574
+		* 59652 notes, 59652 discharge notes, ratio: 100.0
+		* Average length of note (chars): 2047.46
+		* Types of notes: {'Discharge summary': 59652}
