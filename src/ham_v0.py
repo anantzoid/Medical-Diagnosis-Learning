@@ -15,27 +15,16 @@ import torch.nn.functional as F
 import torch.utils.data as data
 import numpy as np
 import math
+import tensorboard_logger
 import spacy
 nlp = spacy.load('en')
-from spacy.en import English
+if spacy.__version__ == '2.0.3':
+    from spacy.lang.en import English    
+else:
+    from spacy.en import English
 tokenizer = English().Defaults.create_tokenizer(nlp)
 use_cuda = torch.cuda.is_available()
 
-
-# In[ ]:
-
-'''
-notedata = []
-with open('../data/mimic/NOTEEVENTS.csv', 'r') as f:
-    rea = csv.reader(f, delimiter=',', quotechar='"')
-    _ = next(rea)
-    for _,row in enumerate(rea):
-        if row[6].lower() == "discharge summary":
-            notedata.append([re.sub("\d", "d", row[-1]), row[2]])
-
-'''
-
-# In[7]:
 
 
 def get_top_labels(path):
@@ -77,11 +66,10 @@ class TextData(data.Dataset):
             sentences = [str(s).replace("\n", "") for s in tokens.sents]                                        
             data[i]['text_index_sequence'] = [[token2idx.get(str(word), token2idx[UNKNOWN]) for word in
                                                            list(tokenizer(sent))] for sent in sentences]                                    
-            label_onehot = np.zeros((len(label_map.keys())))
-            for la in row['label']:
-                label_onehot[label_map[la]] = 1
-            data[i]['label'] = label_onehot        
-
+            # label_onehot = np.zeros((len(label_map.keys())))
+            # for la in row['label']:
+            #     label_onehot[label_map[la]] = 1
+            # data[i]['label'] = label_onehot        
         self.data = data
         
     def __getitem__(self, index):
@@ -103,7 +91,7 @@ def sent_batch_collate(batch):
 
 
 # In[9]:
-
+tensorboard_logger.configure('/scratch/ag4508/nlp_log')
 
 label_path = '../data/top50_labels.csv'
 label_map = {i:_ for _,i in enumerate(get_top_labels(label_path))}
@@ -122,9 +110,8 @@ print("Size of train: %d"%len(training_set))
 
 PADDING = "<PAD>"
 UNKNOWN = "<UNK>"
-max_seq_length = 500
 min_vocab_threshold = 5
-batch_size = 32
+batch_size = 64
 num_workers = 4
 embed_dim = 50
 hidden_dim = 100
@@ -137,11 +124,8 @@ print("Vocab size: %d"%len(vocabulary))
 dataset= TextData(training_set, token2idx, UNKNOWN, label_map)
 train_loader = torch.utils.data.DataLoader(dataset= dataset, batch_size=batch_size, shuffle=True,
                                                            num_workers=num_workers, collate_fn=sent_batch_collate)
-val_loader = torch.utils.data.DataLoader(dataset= TextData(testset, token2idx, UNKNOWN, label_map), batch_size=batch_size, shuffle=True,
-                                                           num_workers=num_workers, collate_fn=sent_batch_collate)
-
-
-# In[11]:
+# val_loader = torch.utils.data.DataLoader(dataset= TextData(testset, token2idx, UNKNOWN, label_map), batch_size=batch_size, shuffle=True,
+#                                                            num_workers=num_workers, collate_fn=sent_batch_collate)
 
 
 class WordModel(nn.Module):
@@ -238,22 +222,57 @@ class Classifer(nn.Module):
 
 # In[12]:
 
+class Ensemble(nn.Module):
+    def __init__(self, embed_dim, vocabulary, hidden_dim, batch_size, label_map):
+        super(Ensemble, self).__init__()
+        self.word_rnn = WordModel(embed_dim, len(vocabulary), hidden_dim, batch_size)
+        self.wordattention = Attend(batch_size, 2*hidden_dim)
+        self.sent_rnn = SentModel(batch_size, 2*hidden_dim)
+        self.sentattention = Attend(batch_size, 4*hidden_dim)
+        self.clf = Classifer(4*hidden_dim, len(label_map.keys()))
 
-model = WordModel(embed_dim, len(vocabulary), hidden_dim, batch_size)
-wordattention = Attend(batch_size, 2*hidden_dim)
-sent_rnn = SentModel(batch_size, 2*hidden_dim)
-sentattention = Attend(batch_size, 4*hidden_dim)
-clf = Classifer(4*hidden_dim, len(label_map.keys()))
-crit = nn.BCEWithLogitsLoss()
-all_params = list(model.parameters()) + list(wordattention.parameters()) +     list(sent_rnn.parameters()) + list(sentattention.parameters())+ list(clf.parameters())
-opti = torch.optim.Adam(all_params, lr=lr, betas=(0.5, 0.999))
+    def forward(self, batch_x, word_hidden, sent_hidden):
+        #print("raw size:", batch_x.size())
+        x, hidden = self.word_rnn(batch_x, word_hidden)
+        #print("word rnn op size:", x.size())
+        #print("word rnn hidden size:", hidden.size())    
+        x = x.contiguous().view(batch_x.size(2), batch_x.size(0)*batch_x.size(1), -1) # sent_size x batch_size x 2*hidd
+        #print("============")
+        #print("word attention ip size:", x.size())
+        sentence_reprs = self.wordattention(x, batch_x.size(1)) # batch_size x sent_size x 2*hidden
+        #print(sentence_reprs.size())
+        #print("============")    
+        sent_op, sent_hidden = self.sent_rnn(sentence_reprs, sent_hidden)
+        #print("sent rnn op size:", sent_op.size())
+        sent_op = sent_op.contiguous().view(batch_x.size(1), batch_size, -1) # sent_size x batch_size x 2*hidden
+        sent_att = self.sentattention(sent_op, 1)
+        sent_att = sent_att.contiguous().view(batch_size, 4*hidden_dim)
+        pred_prob = self.clf(sent_att)
+        return pred_prob
+
+
+def calc_grad_norm(parameters):
+    total_norm, total_grad_norm = 0, 0
+    for p in parameters:
+        param_norm = p.grad.data.norm(norm_type)
+        total_grad_norm += param_norm ** norm_type
+
+        param_norm = p.data.norm(norm_type)
+        total_norm += param_norm ** norm_type
+
+    total_norm = total_norm ** (1. / norm_type)
+    total_grad_norm = total_grad_norm ** (1. / norm_type)
+    return (total_norm, total_grad_norm)
+
+
+model = Ensemble(embed_dim, vocabulary, hidden_dim, batch_size, label_map)
+#crit = nn.BCEWithLogitsLoss()
+crit = nn.CrossEntropyLoss()
+#all_params = list(model.parameters()) + list(wordattention.parameters()) +  list(sent_rnn.parameters()) + list(sentattention.parameters())+ list(clf.parameters())
+opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 
 if use_cuda:
     model.cuda()
-    wordattention.cuda()
-    sent_rnn.cuda()
-    sentattention.cuda()
-    clf.cuda()
     crit.cuda()
     wordattention.context = wordattention.context.cuda()
     sentattention.context = sentattention.context.cuda()
@@ -263,77 +282,74 @@ print("Starting training...")
 step = 0
 train_loss_mean = []
 for n_e in range(num_epochs):
+    word_hidden = model.word_rnn.init_hidden()
+    sent_hidden = model.sent_rnn.init_hidden()
+    if use_cuda:
+        word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
+
     for batch in train_loader:
         if batch[0].size(0) != batch_size:
             continue
 
         model.zero_grad()
-        wordattention.zero_grad()
-        sent_rnn.zero_grad()
-        sentattention.zero_grad()
-        clf.zero_grad()
-
         batch_x = Variable(batch[0])
         batch_y = Variable(batch[1])        
-            
-        _hidden = model.init_hidden()
-        sent_hidden = sent_rnn.init_hidden()
+                        
         if use_cuda:
-            batch_x, batch_y, _hidden, sent_hidden = batch_x.cuda(), batch_y.cuda(), _hidden.cuda(), sent_hidden.cuda()
-        #print("raw size:", batch_x.size())
-        x, hidden = model(batch_x, _hidden)
-        #print("word rnn op size:", x.size())
-        #print("word rnn hidden size:", hidden.size())    
-        x = x.contiguous().view(batch_x.size(2), batch_x.size(0)*batch_x.size(1), -1) # sent_size x batch_size x 2*hidd
-        #print("============")
-        #print("word attention ip size:", x.size())
-        sentence_reprs = wordattention(x, batch_x.size(1)) # batch_size x sent_size x 2*hidden
-        #print(sentence_reprs.size())
-        #print("============")    
-        sent_op, sent_hidden = sent_rnn(sentence_reprs, sent_hidden)
-        #print("sent rnn op size:", sent_op.size())
-        sent_op = sent_op.contiguous().view(batch_x.size(1), batch_size, -1) # sent_size x batch_size x 2*hidden
-        sent_att = sentattention(sent_op, 1)
-        sent_att = sent_att.contiguous().view(batch_size, 4*hidden_dim)
-        pred_prob = clf(sent_att)
+            batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
+    
+        pred_prob = model(batch_x)
         loss = crit(pred_prob, batch_y)
         loss.backward()
+        torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
+
         train_loss_mean.append(loss.data[0])
         if step%100 ==0:
             #print("train preds")
             #print(pred_prob[0])
             val_loss_mean = []
+            word_hidden = model.word_rnn.init_hidden()
+            sent_hidden = model.sent_rnn.init_hidden()
+            if use_cuda:
+                word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
+
+            correct = 0
             for val_batch in val_loader:
                 if batch[0].size(0) != batch_size:
                     continue
 
                 batch_x = Variable(batch[0])
-                batch_y = Variable(batch[1])
-                _hidden = model.init_hidden()
-                sent_hidden = sent_rnn.init_hidden()
+                batch_y = Variable(batch[1])                
                 if use_cuda:
-                    batch_x, batch_y, _hidden, sent_hidden = batch_x.cuda(), batch_y.cuda(), _hidden.cuda(), sent_hidden.cuda()
-                
-                x, hidden = model(batch_x, _hidden)
-                x = x.contiguous().view(batch_x.size(2), batch_x.size(0)*batch_x.size(1), -1)
-                sentence_reprs = wordattention(x, batch_x.size(1))
-                sent_op, sent_hidden = sent_rnn(sentence_reprs, sent_hidden)
-                sent_op = sent_op.contiguous().view(batch_x.size(1), batch_size, -1)
-                sent_att = sentattention(sent_op, 1)
-                sent_att = sent_att.contiguous().view(batch_size, 4*hidden_dim)
-                pred_prob = clf(sent_att)
+                    batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
+                pred_prob = model(batch_x)
                 val_loss = crit(pred_prob, batch_y)
                 val_loss_mean.append(val_loss.data[0])
-            #print("===========")
-            #print(batch_y[0])
-            #print(val_loss_mean[:10])
-            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f"%(n_e, step, np.mean(train_loss_mean), np.mean(val_loss_mean)))
+
+                predicted = torch.max(pred_prob.data, 1.0)
+                correct += (predicted.float() == y.data).sum()
+
+            val_loss_mean = np.mean(val_loss_mean)
+            train_loss_mean = np.mean(train_loss_mean)
+            correct /= float(len(testset))
+            param1, grad1 =calc_grad_norm(model.parameters(), 1)
+            param2, grad2 = calc_grad_norm(model.parameters(), 2)
+            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.2f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
+            print("Param Norm1: %.2f, grad Norm1: %.2f, Param Norm12: %.2f, grad Norm2: %.2f"%(param1, grad1, param2, grad2))
+            tensorboard_logger.log_value('train_loss', train_loss_mean, step)
+            tensorboard_logger.log_value('val_loss', val_loss_mean, step)
+            tensorboard_logger.log_value('val_acc', correct, step)
+            tensorboard_logger.log_value('param norm1', param1, step)
+            tensorboard_logger.log_value('grad norm1', grad1, step)
+            tensorboard_logger.log_value('param norm2', param2, step)
+            tensorboard_logger.log_value('grad norm2', grad2, step)
             train_loss_mean = []
+                    
         step += 1
     print("===========")
     print("val preds")
-    print(pred_prob[0])
+    print(pred_prob[0, :5])
         
 
 
