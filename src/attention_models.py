@@ -31,11 +31,12 @@ class WordModel(nn.Module):
         x = self.word_embed(x)        
         #print("after embedding", x.size())
         x = torch.transpose(x, 1, 0)
+        x = x.contiguous().view(true_x_size[2], self.batch_size*true_x_size[1], self.embed_dim)
         return self.word_rnn(x, _hidden)
         
    
-    def init_hidden(self):
-        hidden1 = Variable(torch.zeros(2, self.batch_size,  self.hidden_dim))
+    def init_hidden(self, b_size):
+        hidden1 = Variable(torch.zeros(2, b_size,  self.hidden_dim))
         #hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
         return hidden1#, hidden2)
 

@@ -56,6 +56,8 @@ valdata = pickle.load(open(args.val_path, 'r'))
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
 vocabulary, token2idx  = build_vocab(traindata, PADDING)
+print("Train size:", len(traindata))
+print("Vocab size:", len(vocabulary))
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
@@ -82,14 +84,15 @@ print("Starting training...")
 step = 0
 train_loss_mean = []
 for n_e in range(args.num_epochs):
-    word_hidden = model.word_rnn.init_hidden()
-    sent_hidden = model.sent_rnn.init_hidden()
-    if use_cuda:
-        word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
     for batch in train_loader:
         if batch[0].size(0) != args.batch_size:
             continue
+
+        word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
+        sent_hidden = model.sent_rnn.init_hidden()
+        if use_cuda:
+            word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
         model.zero_grad()
         batch_x = Variable(batch[0])
@@ -108,15 +111,16 @@ for n_e in range(args.num_epochs):
 
         if step % args.log_interval ==0:
             val_loss_mean = 0
-            word_hidden = model.word_rnn.init_hidden()
-            sent_hidden = model.sent_rnn.init_hidden()
-            if use_cuda:
-                word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
-
             correct = 0
             for val_batch in val_loader:
                 if batch[0].size(0) != args.batch_size:
                     continue
+
+                word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
+                sent_hidden = model.sent_rnn.init_hidden()
+                if use_cuda:
+                    word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
+
 
                 batch_x, batch_y = Variable(batch[0], volatile=True), Variable(batch[1]) 
                 if use_cuda:
@@ -130,9 +134,10 @@ for n_e in range(args.num_epochs):
                 correct += predicted.eq(batch_y.data).cpu().sum()
 
             train_loss_mean = np.mean(train_loss_mean)
+            print(correct, len(val_loader.dataset))
             correct /= float(len(val_loader.dataset))
             val_loss_mean /= float(len(val_loader.dataset))
-            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.2f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
+            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.3f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
 
             param1, grad1 = calc_grad_norm(model.parameters(), 1)
             param2, grad2 = calc_grad_norm(model.parameters(), 2)
