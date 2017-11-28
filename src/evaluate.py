@@ -1,7 +1,8 @@
+import torch
+from torch.autograd import Variable
+
 def evaluate(model, loader, batch_size, crit, use_cuda):
     model.eval()
-    import torch
-    from torch.autograd import Variable
     correct = 0
     total = 0
     for i, batch in enumerate(loader):
