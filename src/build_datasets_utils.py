@@ -25,8 +25,8 @@ ENGLISH_STOP_WORDS = frozenset([
     "latterly", "least", "less", "ltd", "made", "many", "may", "me",
     "meanwhile", "might", "mill", "mine", "more", "moreover", "most", "mostly",
     "move", "much", "must", "my", "myself", "name", "namely", "neither",
-    "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone",
-    "nor", "not", "nothing", "now", "nowhere", "of", "off", "often", "on",
+    "never", "nevertheless", "next", "nine", "nobody", "noone",
+    "nor", "now", "nowhere", "of", "off", "often", "on",
     "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our",
     "ours", "ourselves", "out", "over", "own", "part", "per", "perhaps",
     "please", "put", "rather", "re", "same", "see", "seem", "seemed",
@@ -126,7 +126,7 @@ def remove_stopwords(data):
     max_a = 0
     for d in data:
       note = d[1]
-      n = [[tok for tok in sent if tok in ENGLISH_STOP_WORDS] for sent in note]
+      n = [[tok for tok in sent if tok not in ENGLISH_STOP_WORDS] for sent in note]
       len_b = sum([1 for sent in note for tok in sent])
       len_a = sum([1 for sent in n for tok in sent])
       avg_length_before += len_b

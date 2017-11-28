@@ -152,5 +152,5 @@ for i in range(args.epochs):
     evaluate(model, train_loader, crit, args.cuda, args.batchsize, num_labels)
     print("Evaluating model on validation data")
     evaluate(model, valid_loader, crit, args.cuda, args.batchsize, num_labels)
-    if i % 1 == 0:
-      torch.save(model.state_dict(), os.path.join(args.modelpath, args.experiment + '_' + str(i)))
+    if i % 2 == 0:
+      torch.save(model.state_dict(), os.path.join(args.modelfolder, args.experiment + '_' + str(i)))
