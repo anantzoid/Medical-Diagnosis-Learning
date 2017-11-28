@@ -26,15 +26,32 @@ tokenizer = English().Defaults.create_tokenizer(nlp)
 use_cuda = torch.cuda.is_available()
 
 
+label_path = '../data/top50_labels1.csv'
+data_path = '../data/summaries_labels1.csv'
+log_path = '/scratch/ag4508/nlp_log'
+
+PADDING = "<PAD>"
+UNKNOWN = "<UNK>"
+min_vocab_threshold = 100
+batch_size = 4
+num_workers = 4
+embed_dim = 50
+hidden_dim = 100
+lr = 1e-2
+num_epochs = 10
+
+
 
 def get_top_labels(path):
     labels = [row[0] for row in  csv.reader(open(path, "r"), delimiter=",")]
     return {i:_ for _,i in enumerate(labels)}
 
-def load_summaries(path):
+def load_summaries(path, labels):
     data = []
     for row in  csv.reader(open(path, "r"), delimiter=",", quotechar='"'):
         if row[1] == '':
+            continue
+        if row[2].split(',')[0] not in labels:
             continue
         data.append({
             'text': re.sub("\d", "d", row[1]),
@@ -70,6 +87,7 @@ class TextData(data.Dataset):
             # for la in row['label']:
             #     label_onehot[label_map[la]] = 1
             # data[i]['label'] = label_onehot        
+            data[i]['label'] = label_map[data[i]['label'][0]]
         self.data = data
         
     def __getitem__(self, index):
@@ -87,17 +105,16 @@ def sent_batch_collate(batch):
             for w, word in enumerate(sentence):                                
                 x[n, s, w] = float(word)
 
-    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).float())
+    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).long())
 
 
 # In[9]:
-tensorboard_logger.configure('/scratch/ag4508/nlp_log')
-
-label_path = '../data/top50_labels.csv'
+tensorboard_logger.configure(log_path)
 label_map = {i:_ for _,i in enumerate(get_top_labels(label_path))}
-
-data_path = '../data/summaries_labels.csv'
-training_set = load_summaries(data_path)
+training_set = load_summaries(data_path, label_map.keys())
+print("Data Loaded...")
+#############TODO remote this ###########
+training_set = training_set[:1000]
 
 random.shuffle(training_set)
 testset = training_set[int(len(training_set)*0.9):]
@@ -105,28 +122,15 @@ training_set = training_set[:int(len(training_set)*0.9)]
 print("Size of train: %d"%len(training_set))
 
 
-# In[10]:
-
-
-PADDING = "<PAD>"
-UNKNOWN = "<UNK>"
-min_vocab_threshold = 5
-batch_size = 64
-num_workers = 4
-embed_dim = 50
-hidden_dim = 100
-lr = 1e-2
-num_epochs = 10
-
 
 token2idx, vocabulary = build_dictionary(training_set, PADDING, UNKNOWN, min_vocab_threshold, tokenizer)
 print("Vocab size: %d"%len(vocabulary))
 dataset= TextData(training_set, token2idx, UNKNOWN, label_map)
 train_loader = torch.utils.data.DataLoader(dataset= dataset, batch_size=batch_size, shuffle=True,
                                                            num_workers=num_workers, collate_fn=sent_batch_collate)
-# val_loader = torch.utils.data.DataLoader(dataset= TextData(testset, token2idx, UNKNOWN, label_map), batch_size=batch_size, shuffle=True,
-#                                                            num_workers=num_workers, collate_fn=sent_batch_collate)
-
+val_loader = torch.utils.data.DataLoader(dataset= TextData(testset, token2idx, UNKNOWN, label_map), batch_size=batch_size, shuffle=True,
+                                                           num_workers=num_workers, collate_fn=sent_batch_collate)
+print("data loader done")
 
 class WordModel(nn.Module):
     def __init__(self, embed_dim, vocab_size, hidden_dim, batch_size):
@@ -141,7 +145,7 @@ class WordModel(nn.Module):
     def forward(self, x, _hidden):
         true_x_size = x.size()
         x = x.view(self.batch_size, -1)
-        #print("before embedding", x.size())        
+        print("before embedding", x.size())        
         x = self.word_embed(x)        
         #print("after embedding", x.size())
         x = torch.transpose(x, 1, 0)
@@ -251,7 +255,8 @@ class Ensemble(nn.Module):
         return pred_prob
 
 
-def calc_grad_norm(parameters):
+def calc_grad_norm(parameters, norm_type):
+    norm_type = float(norm_type)
     total_norm, total_grad_norm = 0, 0
     for p in parameters:
         param_norm = p.grad.data.norm(norm_type)
@@ -274,8 +279,8 @@ opti = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 if use_cuda:
     model.cuda()
     crit.cuda()
-    wordattention.context = wordattention.context.cuda()
-    sentattention.context = sentattention.context.cuda()
+    model.wordattention.context = model.wordattention.context.cuda()
+    model.sentattention.context = model.sentattention.context.cuda()
 
 # In[13]:
 print("Starting training...")
@@ -298,14 +303,14 @@ for n_e in range(num_epochs):
         if use_cuda:
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
     
-        pred_prob = model(batch_x)
+        pred_prob = model(batch_x, word_hidden, sent_hidden)
         loss = crit(pred_prob, batch_y)
         loss.backward()
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
 
         train_loss_mean.append(loss.data[0])
-        if step%100 ==0:
+        if step%10 ==0:
             #print("train preds")
             #print(pred_prob[0])
             val_loss_mean = []
@@ -323,12 +328,13 @@ for n_e in range(num_epochs):
                 batch_y = Variable(batch[1])                
                 if use_cuda:
                     batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
-                pred_prob = model(batch_x)
+                pred_prob = model(batch_x, word_hidden, sent_hidden)
                 val_loss = crit(pred_prob, batch_y)
                 val_loss_mean.append(val_loss.data[0])
 
-                predicted = torch.max(pred_prob.data, 1.0)
-                correct += (predicted.float() == y.data).sum()
+                predicted = torch.max(pred_prob.data, 1)
+                correct += (pred_prob.eq(batch_y.data.long())).sum()
+                #correct += (predicted.float() == y.data).sum()
 
             val_loss_mean = np.mean(val_loss_mean)
             train_loss_mean = np.mean(train_loss_mean)
