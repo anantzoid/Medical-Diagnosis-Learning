@@ -23,6 +23,7 @@ parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--log_path', type=str, default='log/hamv1')
 parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL3_UNK_content_4_train_data.pkl')
 parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL3_UNK_content_4_valid_data.pkl')
+parser.add_argument('--args', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/hamv1.pth')
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--embed_dim', type=int, default=50)
@@ -147,10 +148,9 @@ for n_e in range(args.num_epochs):
             train_loss_mean = []
                     
         step += 1
-        if n_e % args.lr_decay_epoch == 0:
-            args.lr *= args.lr_decay_rate
-            print("LR changed to", args.lr)
-            opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
-
-
-
+    if n_e % args.lr_decay_epoch == 0:
+        args.lr *= args.lr_decay_rate
+        print("LR changed to", args.lr)
+        opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
+    
+    torch.save(model.state_dict(), args.model_file)
