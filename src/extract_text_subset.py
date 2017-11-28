@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 from collections import Counter
 
-base_path = '/Users/lauragraesser/Documents/NYU_Courses/medical_data'
+base_path = '/misc/vlgscratch2/LecunGroup/laura/medical_notes'
 from data_util import *
 import re
 import random
@@ -73,9 +73,9 @@ def read_data_dump(data_path):
 
 if __name__ == "__main__":
     print("Reading data")
-    rawdata = read_data_dump(os.path.join(base_path, 'notes_dump_small.pkl'))
+    rawdata = read_data_dump(os.path.join(base_path, 'notes_dump.pkl'))
     rawdata = select_only_discharge_notes(rawdata)
     get_data_stats_2(rawdata)
-    f = open(os.path.join(base_path, 'notes_dump_small_extract_and_clean_text.pkl'), 'wb')
+    f = open(os.path.join(base_path, 'notes_dump_diagnosis_only_note_extract_inc_history.pkl'), 'wb')
     pickle.dump({'data':rawdata}, f)
     f.close()

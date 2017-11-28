@@ -1,0 +1,123 @@
+Namespace(ICDcodelength=5, data='/misc/vlgscratch2/LecunGroup/laura/medical_notes', generatesplits=1, mapunk=0, notescontent=4, notesfile='NOTEEVENTS.csv', notestypes='discharge summary', numlabels=10, preprocessing='add space,remove brackets,replace numbers,replace break', procdatafile='10codesL5_UNK_content_4', vocabcountthreshold=5)
+()
+Note types included: ['discharge summary']
+Total number of HADM_ID: 58976
+
+Example: raw data
+{'labels': {'seq_no': ['1', '2', '3', '4', '5', '6'], 'icd': ['41401', '4111', '48283', '2859', '2720', '3051']}, 'pat_id': '114'}
+()
+Generating HADM ID splits...
+Length train: 47243 valid: 5940 test: 5793
+Top diagnoses: ['4019', '4280', '42731', '41401', '5849', '25000', '2724', '51881', '5990', '53081']
+
+Example after processing ICD codes
+{'labels': {'seq_no': ['1'], 'icd': ['41401']}, 'pat_id': '114'}
+()
+Total number of HADM_ID after ICD processing: 41796
+
+Example after removing blanks
+{'labels': {'seq_no': ['1'], 'icd': ['41401']}, 'pat_id': '114'}
+()
+Processed 100000 rows
+Processed 200000 rows
+Processed 300000 rows
+Processed 400000 rows
+Processed 500000 rows
+Processed 600000 rows
+Processed 700000 rows
+Processed 800000 rows
+Processed 900000 rows
+Processed 1000000 rows
+Processed 1100000 rows
+Processed 1200000 rows
+Processed 1300000 rows
+Processed 1400000 rows
+Processed 1500000 rows
+Processed 1600000 rows
+Processed 1700000 rows
+Processed 1800000 rows
+Processed 1900000 rows
+Processed 2000000 rows
+Number of HADM ID with notes added: 1270826
+Data stats after loading data
+('No. of data points:', 41796)
+('Data points with no notes:', 1234)
+('Average No. of notes per Hadm_id:', 1.1029285099052542)
+46098 notes, 46098 discharge notes, ratio: 100.0
+Average length of note (chars): 11211.98
+{'Discharge summary': 46098}
+()
+EXAMPLE NOTE PROCESSING...
+Original note
+{'note': 'Admission Date:  [**2190-8-24**]              Discharge Date:   [**2190-9-8**]\n\nDate of Birth:  [**2112-10-30**]             Sex:   M\n\nService: CARDIOTHORACIC\n\nAllergies:\nPatient recorded as having No Known Allergies to Drugs\n\nAttending:[**First Name3 (LF) 1283**]\nChief Complaint:\nDOE\n\nMajor Surgical or Invasive Procedure:\n[**2190-8-25**] Upper and Lower GI Endoscopy\n[**2190-8-31**] Mitral Valve Replacement(29mm Mosaic Porcine valve) and\nThree Vessel Coronary Artery Bypass Grafting(left internal\nmammary to left anterior descending, vein grafts to obtuse\nmarginal and posterior descending artery)\n\n\nHistory of Present Illness:\n77 yo male with history of CAD and IMI. Elective cath done in\npreparation for planned MVR. Cath revealed LM 50%, LAD 80%, CX\n50%, RCA 100%, mild AI, EF 50%, moderate MR.Echo also showed 4+\nMR and 2+ AI. Referred to Dr. [**Last Name (STitle) 1290**] for MVR/CABG/possible\nAVR.\n\nPast Medical History:\nCAD/IMI\nNIDDM\nelev. chol.\nHTN\nCHF\nDJD\nvery HOH\npacer for bradycardia [**2185**] ([**Company 1543**] Sigma 300 DR)\n\nSocial History:\nretired, lives with wife\nno ETOH\nquit smoking 5 years ago,  55pack-yrs\nno recr. drugs\n\n\nFamily History:\nnon-contrib.\n\nPhysical Exam:\nHR 72 RR 16  right 124/60  left 120/58\n5\'8"   158#\nWDWN in NAD\nskin unremarkable\nPERRL, EOMI, NC/AT, OP benign\nneck full ROM, no JVD or bruits\nCTAB\nRRR   3/6 murmur\nsoft, NT, ND,  + BS\nwarm, well-perfused, no edema, no varicosities\nalert and oriented X 3, MAE, non-focal\n2+ fem/DP/PT/radials\n\nPertinent Results:\n[**2190-9-7**] 07:25AM BLOOD WBC-8.4 RBC-3.68* Hgb-8.9* Hct-28.1*\nMCV-77* MCH-24.2* MCHC-31.7 RDW-21.9* Plt Ct-315#\n[**2190-9-7**] 07:25AM BLOOD Plt Ct-315#\n[**2190-9-7**] 07:25AM BLOOD PT-25.9* PTT-35.4* INR(PT)-2.6*\n[**2190-9-7**] 07:25AM BLOOD Glucose-85 UreaN-24* Creat-1.4* Na-140\nK-4.4 Cl-99 HCO3-32 AnGap-13\n\nBrief Hospital Course:\nAdmitted for surgery on [**8-24**] and taken to the OR. Hematocrit\ndrawn prior to incision was 20.5. This represented a significant\ndrop from his last PAT Hct which was 27.5. Surgery cancelled in\nthe OR for anemia work-up to rule out a source of active\nbleeding.Patient taken to CSRU in stable condition and extubated\nthere later in the day. Seen by general surgery team and GI\nconsult. Abd/pelvic CT scanning also done with no source of\nbleeding or hematomas found. EGD and colonoscopy done on [**8-25**]\nwith were negative. Capsule endoscopy on [**2190-8-27**] showed\nangioextasia in the distal small bowel. Angiography showed no\nactive bleeding. Hematology consult recommended iron\nsupplementation.  General surgery deferred push enteroscopy via\nlaparotomy. He as taken to the operating room on [**2190-8-31**] where\nhe underwent a CABG x 3 and MVR (Porcine). Please see op note\nfor details. He was extubated on POD #1. He was seen by\nelectrophysiology who reprogrammed his PPM to a backup rate of\n80 from 70, and turned off the sleep mode to help wean from his\nepinephrine. The pacer was returned to its original settings on\n[**2190-9-3**]. He was anticoagulated for underlying atrial\nfibrilation.\n\nMedications on Admission:\namiodarone 200 mg daily\nlopressor 25 mg [**Hospital1 **]\nomeprazole 20 mg daily\nASA 325 mg daily\nglyburide 2.5 mg daily\ncombivent\nlasix 40 mg [**Hospital1 **]\nvytorin 10/40 mg daily\nKCl\namoxicillin prn dental\n\nDischarge Medications:\n1. Amiodarone 200 mg Tablet Sig: One (1) Tablet PO DAILY\n(Daily).\nDisp:*30 Tablet(s)* Refills:*2*\n2. Metoprolol Tartrate 25 mg Tablet Sig: One (1) Tablet PO BID\n(2 times a day).\nDisp:*60 Tablet(s)* Refills:*2*\n3. Pantoprazole 40 mg Tablet, Delayed Release (E.C.) Sig: One\n(1) Tablet, Delayed Release (E.C.) PO Q24H (every 24 hours).\nDisp:*30 Tablet, Delayed Release (E.C.)(s)* Refills:*2*\n4. Aspirin 325 mg Tablet, Delayed Release (E.C.) Sig: One (1)\nTablet, Delayed Release (E.C.) PO DAILY (Daily).\nDisp:*30 Tablet, Delayed Release (E.C.)(s)* Refills:*2*\n5. Glyburide 2.5 mg Tablet Sig: One (1) Tablet PO DAILY (Daily).\nDisp:*30 Tablet(s)* Refills:*2*\n6. Furosemide 40 mg Tablet Sig: One (1) Tablet PO BID (2 times a\nday).\nDisp:*60 Tablet(s)* Refills:*2*\n7. Vytorin 10/40 10-40 mg Tablet Sig: One (1) Tablet PO once a\nday.\nDisp:*30 Tablet(s)* Refills:*2*\n8. Potassium Chloride 20 mEq Packet Sig: One (1)  PO twice a\nday.\nDisp:*60 * Refills:*2*\n\n\nDischarge Disposition:\nHome With Service\n\nFacility:\n[**Hospital 2255**] [**Name (NI) 2256**]\n\nDischarge Diagnosis:\nanemia\nCAD\nIMI\nNIDDM\nCHF\nDJD\nvery HOH\npacemaker (bradycardia)[**Company 1543**] Sigma 300 DR\n\n\nDischarge Condition:\ngood\n\n\nDischarge Instructions:\nfollow up appts. as below\n\nFollowup Instructions:\nsee Dr. [**Last Name (STitle) 1057**] in [**1-11**] weeks\nschedule follow up appt. with Dr. [**Last Name (STitle) 1290**] in 3 weeks ( after\nhematology work-up is complete). Please call him this coming\nThursday [**9-2**] for update.\n\n\n\nCompleted by:[**2190-9-9**]', 'date': '2190-09-08', 'note_type': 'Discharge summary', 'description': 'Report'}
+()
+Note after text selection
+history of present illness:
+77 yo male with history of cad and imi. elective cath done in
+preparation for planned mvr. cath revealed lm 50%, lad 80%, cx
+50%, rca 100%, mild ai, ef 50%, moderate mr.echo also showed 4+
+mr and 2+ ai. referred to dr. [**last name (stitle) 1290**] for mvr/cabg/possible
+avr.
+
+discharge diagnosis:
+anemia
+cad
+imi
+niddm
+chf
+djd
+very hoh
+pacemaker (bradycardia)[**company 1543**] sigma 300 dr
+
+
+discharge condition:
+good
+
+
+discharge instructions:
+follow up appts. as below
+
+followup instructions:
+see dr. [**last name (stitle) 1057**] in [**1-11**] weeks
+schedule follow up appt. with dr. [**last name (stitle) 1290**] in 3 weeks ( after
+hematology work-up is complete). please call him this coming
+thursday [**9-2**] for update.
+
+
+
+completed by:[**2190-9-9**]
+()
+Note after text processing
+history of present illness : dd yo male with history of cad and imi . elective cath done in preparation for planned mvr . cath revealed lm dd% , lad dd% , cx dd% , rca ddd% , mild ai , ef dd% , moderate mr . echo also showed d+ mr and d+ ai . referred to dr . for mvr/cabg/possible avr . discharge diagnosis : anemia cad imi niddm chf djd very hoh pacemaker (bradycardia) weeks schedule follow up appt . with dr . in d weeks ( after hematology work-up is complete) . please call him this coming thursday 
+()
+('No. of data points:', 41796)
+('Data points with no notes:', 1234)
+('Average No. of notes per Hadm_id:', 1.1029285099052542)
+46098 notes, 46098 discharge notes, ratio: 100.0
+Average length of note (chars): 2399.61
+{'Discharge summary': 46098}
+()
+FINAL NUMBER OF DATAPOINTS: 39812
+EXAMPLES
+['110557', 'history of present illness : dd yo male with history of cad and imi . elective cath done in preparation for planned mvr . cath revealed lm dd% , lad dd% , cx dd% , rca ddd% , mild ai , ef dd% , moderate mr . echo also showed d+ mr and d+ ai . referred to dr . for mvr/cabg/possible avr . discharge diagnosis : anemia cad imi niddm chf djd very hoh pacemaker (bradycardia) weeks schedule follow up appt . with dr . in d weeks ( after hematology work-up is complete) . please call him this coming thursday ', '41401 4280 42731 25000 2724']
+()
+['110554', "history of present illness : this is dd year old white female with congestive cardiomyopathy , diabetes mellitus , chronic renal insufficiency , hypertension , anemia , and tracheal stenosis , who developed severely swollen legs in , during an episode of congestive heart failure . the patient's lasix dose was increased with improvement of symptoms . however , the patient developed ulcerations of her legs secondary to the swelling and was admitted to the vascular surgical service from until . cultures of the patient's left heel during that admission showed no growth . non-invasive arterial studies showed tibial disease , right greater than left . the patient was discharged home on unasyn for a total of two weeks . the patient was seen in the office with worsening ulcers , right greater than left . the patient was no longer on any antibiotics . the patient complained of severe leg pain , ) , which had been a problem since discharge home . the patient had been seen at the pain clinic . a tens unit was tried . however , the patient still had severe pain in her legs . most recently , the patient was using aspirin for pain and darvocet prior to that without any significant pain relief . she has been unable to sleep through the night or tolerate any dressings on her leg ulcers . the patient is admitted for further treatment . . history of present illness : mrs . is a dd year old woman with a complicated prolonged hospital course who was transferred to the , to the vascular left below the knee amputation on . her postoperative course was complicated by suicidal ideations requiring a one-to-one sitter . for a more detailed review of the patient's stay on the vascular service , please refer to the discharge summary from . the patient was subsequently transferred to medical intensive thought to be a combination of uremia secondary to acute on chronic renal failure and necrotic infection . in the medical intensive care unit , the ekg showed new inferior st elevations and the patient subsequently ruled in for an acute myocardial infarction with peak ck of ddd , mb of dd and troponin of dd . d . preoperative stress mibi on , had shown moderate defects anteriorly , inferiorly , laterally and apically , with marked diffuse hypokinesis and ejection fraction of dd% . dialysis was initiated on with continued improvement in mental status . the patient was initially treated conservatively for an myocardial infarction with heparin , beta blocker , aspirin , ace inhibitor . the patient was taken to the catheterization laboratory on . in the catheterization , the patient was discovered to have three-vessel disease and underwent percutaneous transluminal coronary angioplasty of obtuse marginal d lesion with good results . for more details , please refer to the catheterization report from . post-catheterization , the patient did not have any chest pain , shortness of breath , dizziness , nausea , vomiting or other complaints . ", '4280 5849']
+()
+Length of split data: train: 31904, valid: 3970, test: 3938
+Tokenized 0 notes
+Tokenized 5000 notes
+Tokenized 10000 notes
+Tokenized 15000 notes
+Tokenized 20000 notes
+Tokenized 25000 notes
+Tokenized 30000 notes
+Time for python tokenization on training data: 12.551
+Tokenized 0 notes
+Tokenized 0 notes
+EXAMPLES AFTER TOKENIZATION
+31
+['110554', [['history', 'of', 'present', 'illness', ':', 'this', 'is', 'dd', 'year', 'old', 'white', 'female', 'with', 'congestive', 'cardiomyopathy', ',', 'diabetes', 'mellitus', ',', 'chronic', 'renal', 'insufficiency', ',', 'hypertension', ',', 'anemia', ',', 'and', 'tracheal', 'stenosis', ',', 'who', 'developed', 'severely', 'swollen', 'legs', 'in', ',', 'during', 'an', 'episode', 'of', 'congestive', 'heart', 'failure'], ['the', "patient's", 'lasix', 'dose', 'was', 'increased', 'with', 'improvement', 'of', 'symptoms'], ['however', ',', 'the', 'patient', 'developed', 'ulcerations', 'of', 'her', 'legs', 'secondary', 'to', 'the', 'swelling', 'and', 'was', 'admitted', 'to', 'the', 'vascular', 'surgical', 'service', 'from', 'until'], ['cultures', 'of', 'the', "patient's", 'left', 'heel', 'during', 'that', 'admission', 'showed', 'no', 'growth'], ['non-invasive', 'arterial', 'studies', 'showed', 'tibial', 'disease', ',', 'right', 'greater', 'than', 'left'], ['the', 'patient', 'was', 'discharged', 'home', 'on', 'unasyn', 'for', 'a', 'total', 'of', 'two', 'weeks'], ['the', 'patient', 'was', 'seen', 'in', 'the', 'office', 'with', 'worsening', 'ulcers', ',', 'right', 'greater', 'than', 'left'], ['the', 'patient', 'was', 'no', 'longer', 'on', 'any', 'antibiotics'], ['the', 'patient', 'complained', 'of', 'severe', 'leg', 'pain', ',', ')', ',', 'which', 'had', 'been', 'a', 'problem', 'since', 'discharge', 'home'], ['the', 'patient', 'had', 'been', 'seen', 'at', 'the', 'pain', 'clinic'], ['a', 'tens', 'unit', 'was', 'tried'], ['however', ',', 'the', 'patient', 'still', 'had', 'severe', 'pain', 'in', 'her', 'legs'], ['most', 'recently', ',', 'the', 'patient', 'was', 'using', 'aspirin', 'for', 'pain', 'and', 'darvocet', 'prior', 'to', 'that', 'without', 'any', 'significant', 'pain', 'relief'], ['she', 'has', 'been', 'unable', 'to', 'sleep', 'through', 'the', 'night', 'or', 'tolerate', 'any', 'dressings', 'on', 'her', 'leg', 'ulcers'], ['the', 'patient', 'is', 'admitted', 'for', 'further', 'treatment'], [''], ['history', 'of', 'present', 'illness', ':', 'mrs'], ['is', 'a', 'dd', 'year', 'old', 'woman', 'with', 'a', 'complicated', 'prolonged', 'hospital', 'course', 'who', 'was', 'transferred', 'to', 'the', ',', 'to', 'the', 'vascular', 'left', 'below', 'the', 'knee', 'amputation', 'on'], ['her', 'postoperative', 'course', 'was', 'complicated', 'by', 'suicidal', 'ideations', 'requiring', 'a', 'one-to-one', 'sitter'], ['for', 'a', 'more', 'detailed', 'review', 'of', 'the', "patient's", 'stay', 'on', 'the', 'vascular', 'service', ',', 'please', 'refer', 'to', 'the', 'discharge', 'summary', 'from'], ['the', 'patient', 'was', 'subsequently', 'transferred', 'to', 'medical', 'intensive', 'thought', 'to', 'be', 'a', 'combination', 'of', 'uremia', 'secondary', 'to', 'acute', 'on', 'chronic', 'renal', 'failure', 'and', 'necrotic', 'infection'], ['in', 'the', 'medical', 'intensive', 'care', 'unit', ',', 'the', 'ekg', 'showed', 'new', 'inferior', 'st', 'elevations', 'and', 'the', 'patient', 'subsequently', 'ruled', 'in', 'for', 'an', 'acute', 'myocardial', 'infarction', 'with', 'peak', 'ck', 'of', 'ddd', ',', 'mb', 'of', 'dd', 'and', 'troponin', 'of', 'dd'], ['d'], ['preoperative', 'stress', 'mibi', 'on', ',', 'had', 'shown', 'moderate', 'defects', 'anteriorly', ',', 'inferiorly', ',', 'laterally', 'and', 'apically', ',', 'with', 'marked', 'diffuse', 'hypokinesis', 'and', 'ejection', 'fraction', 'of', 'dd%'], ['dialysis', 'was', 'initiated', 'on', 'with', 'continued', 'improvement', 'in', 'mental', 'status'], ['the', 'patient', 'was', 'initially', 'treated', 'conservatively', 'for', 'an', 'myocardial', 'infarction', 'with', 'heparin', ',', 'beta', 'blocker', ',', 'aspirin', ',', 'ace', 'inhibitor'], ['the', 'patient', 'was', 'taken', 'to', 'the', 'catheterization', 'laboratory', 'on'], ['in', 'the', 'catheterization', ',', 'the', 'patient', 'was', 'discovered', 'to', 'have', 'three-vessel', 'disease', 'and', 'underwent', 'percutaneous', 'transluminal', 'coronary', 'angioplasty', 'of', 'obtuse', 'marginal', 'd', 'lesion', 'with', 'good', 'results'], ['for', 'more', 'details', ',', 'please', 'refer', 'to', 'the', 'catheterization', 'report', 'from'], ['post-catheterization', ',', 'the', 'patient', 'did', 'not', 'have', 'any', 'chest', 'pain', ',', 'shortness', 'of', 'breath', ',', 'dizziness', ',', 'nausea', ',', 'vomiting', 'or', 'other', 'complaints'], ['']], '4280 5849']
+()
+28
+['123851', [['history', 'of', 'present', 'illness', ':', 'dd', 'yo', 'male', 'with', 'schizoaffective', 'disorder', 's/p', 'serious', 'sa', 'via', 'excedrin', 'od', 'earlier', 'in', 'with', 'subsequent', 'd', 'week', 'hospitalization', 'at', '(including', 'icu', 'stay', 'with', 'intubation', ',', 'subsequent', 'vap)transferred', 'from', 'medicine', 'for', 'further', 'evaluation', 'and', 'stabilization'], ['pt', 'was', 'discharged', 'from', 'for', 'evaluation', 'of', 'diaphoresis', 'and', 'tachycardia'], ['discharge', 'diagnosis', ':', 'axis', 'i', '-', 'axis', 'ii', '-', 'deferred', 'axis', 'iii', '-', 'rule', 'out', 'seizure', 'disorder', ',', 'recent', 'tylenol', 'overdose', ',', 'obstructive', 'sleep', 'apnea', ',', 'gastrointestinal', 'reflux', 'disease', 'discharge', 'condition', ':', 'pt', 'transferred', 'to', 'medicine', 'discharge', 'instructions', ':', 'pt', 'transferred', 'to', 'medicine', 'followup', 'instructions', ':', 'pt', 'transferred', 'to', 'medicine'], ['history', 'of', 'present', 'illness', ':', 'dd', 'yo', 'male', 'w/', 'hx', 'of', 'bipolar', 'd/o', ',', 'schizoaffective', 'd/o', 'admitted', 'to', 'd', 'following', 'recent', 'suicide', 'attempt', '(excedrin', 'od)'], ['patient', 'had', 'been', 'hospitalized', 'in', 'the', 'micu', 'at', '(inpatient', 'psychiatry)', 'and', 'continues', 'to', 'have', 'chills', ',', 'sweats', 'and', 'an', 'elevated', 'wbc'], ['(dd'], ['d)'], ['pt', 'had', 'been', 'afebrile', ',', 'denies', 'cough', ',', 'sob', ',', 'n/v', ',', 'abdominal', 'pain', ',', 'headache', 'or', 'urinary', 'frequency/dysuria'], [''], ['pt', 'was', 'initially', 'admitted', 'to', 'the', 'medical', 'service', 'for', 'workup', 'of', 'leukocytosis', 'and', 'mental', 'status', 'changes'], ['psychiatry', 'and', 'neurology', 'were', 'consulted'], ["pt's", 'infectious', 'workup', 'has', 'been', 'completely', 'negative', 'thus', 'far', 'including', 'negative', 'blood', 'cultures', ',', 'urine', 'cx', 'and', 'lp'], ['pt', 'has', 'ongoing', 'language', 'difficulties', 'and', 'memory', 'problems'], ['pt', 'was', 'transferred', 'to', 'the', 'pyschiatry', 'inpatient', 'service', 'for', 'ongoing', 'depression', 'and', 'suicidal', 'ideation'], ['evaluated', 'by', 'med', 'consult', 'on', 'for', 'ongoing', 'increased', 'wbc', 'which', 'resolved', 'on', 'recheck', 'and', 'low', 'grade', 'fevers', '(dds)'], ['seen', 'on', 'am', 'for', 'l', 'sided', 'cp', ',', 'ekg', 'done', 'and', 'during', 'this', 'time', 'developed', 'movemments', 'suggestive', 'of', 'seizure', 'with', 'head', 'turned', 'to', 'right', ',', 'eyes', 'closed', ',', 'muscle', 'rigidity', ',', 'and', 'non-rhythmic', 'leg', 'and', 'arm', 'movements'], ['cp', 'was', 'felt', 'to', 'be', 'consistent', 'with', 'gerd'], ['neuro', 'did', 'eeg', 'which', 'was', 'negative', 'for', 'epileptiform', 'and', 'felt', 'that', 'it', 'was', 'a', 'pseudoseizure'], ['code', 'blue', 'called', 'at', 'd', ':', 'ddpm', 'and', 'micu', 'team', 'responded'], ['apparently', ',', 'patient', 'stood', 'up', 'with', 'food', 'tray', ',', 'made', 'rhythmic', 'arm', 'movements', ',', 'got', 'down', 'to', 'all', 'fours', ',', 'then', 'laid', 'down', 'with', 'rhythmic', 'movments', 'and', 'rigidity'], ['this', 'was', 'followed', 'by', 'a', 'period', 'of', 'decreased', 'responsiveness'], ['he', 'received', 'dmg', 'total', 'ativan', 'im'], ['vitals', 'during', 'were', 'bp', 'of', 'ddd/dd', ',', 'hr', 'in', 'ddds', ',', 'odsat', 'of', 'ddd%', 'on', 'nrb', 'and', 'fs', 'of', 'ddd'], ['no', 'head', 'trauma', 'was', 'noted', 'during', 'this', 'event'], ['he', 'was', 'then', 'transferred', 'to', 'the', 'micu', 'for', 'further', 'care'], ['discharge', 'diagnosis', ':', '-', 'pseudoseizure', '-', 'gerd', '-', 'history', 'of', 'bipolar', 'vs'], ['schizoaffective', 'd/o', 'with', 'depression', 'and', 'delusional', 'thinking', '-', 'many', 'past', 'psych', 'hospitalizations', 'and', 'on', 'previous', 'sa', 'by', 'od', 'on', 'asa', '-osa', 'on', 'cpap', 'dd/d', 'discharge', 'condition', ':', 'good', 'discharge', 'instructions', ':', '-', 'you', 'may', 'eat', '-', 'you', 'may', 'shower', '-', 'you', 'will', 'be', 'transferred', 'to', 'd', '-', 'an', 'inpatient', 'psych', 'facility', '-', 'to', 'continue', 'your', 'psych', 'care', '-', 'md', 'or', 'return', 'to', 'ed', 'if', 't>ddd'], ['d', ',', 'chills', ',', 'nausea', ',', 'vomiting', ',', 'chest', 'pain', ',', 'shortness', 'of', 'breath', ',', 'seizure', 'like', 'activity', ',', 'or', 'any', 'other', 'concern', 'followup', 'instructions', ':', '-', 'you', 'will', 'need', 'to', 'follow-up', 'with', 'your', 'primary', 'care', 'physician', 'within', 'one', 'week', 'of', 'your', 'discharge', 'from', 'd']], '53081']
+()

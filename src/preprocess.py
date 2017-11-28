@@ -5,26 +5,28 @@ from collections import Counter
 import argparse
 import pprint
 import pickle
+import time
 from preprocess_helpers import *
 from data_util import get_data_stats
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--data', type=str, default='/Users/lauragraesser/Documents/NYU_Courses/medical_data', help="folder where data is located")
 parser.add_argument('--notesfile', type=str, default='NOTEEVENTS.csv', help="notes data file")
+parser.add_argument('--procdatafile', type=str, default='base', help="processed data file name")
 parser.add_argument('--numlabels', type=int, default=10,
                     help='Number of distinct ICD9 codes to use')
-parser.add_argument('--ICDcodelength', type=int, default=4,
+parser.add_argument('--ICDcodelength', type=int, default=5,
                     help='How many of the digits of the ICD code to use as a label')
 parser.add_argument('--notestypes', type=str, default='discharge summary',
                     help='Types of notes to include')
-parser.add_argument('--notescontent', type=int, default=2,
+parser.add_argument('--notescontent', type=int, default=3,
                     help='What part of the note to include')
-parser.add_argument('--preprocessing', type=str, default='replace numbers,replace break',
+parser.add_argument('--preprocessing', type=str, default='add space,remove brackets,replace numbers,replace break',
                     help='What preprocessing to do on the text')
-parser.add_argument('--vocabcountthreshold', type=int, default=10,
+parser.add_argument('--vocabcountthreshold', type=int, default=5,
                     help='Only include words with count > threshold in vocabulary')
 parser.add_argument('--mapunk', type=int, default=0,
-                    help='Whether to map OOV words to words in vocab using edit dist')
+                    help='Whether to map OOV words to words in vocab using edit dist and how')
 parser.add_argument('--generatesplits', type=int, default=0,
                     help='Whether to generate a new split of the data for train-valid-test')
 args = parser.parse_args()
@@ -51,6 +53,7 @@ vocab_count_threshold = args.vocabcountthreshold # Only include words with count
 map_unk_using_edit_dist = args.mapunk # Whether to map OOV words to words in vocab using edit dist
 
 # Load ICD data and process ICD codes
+total_start = time.time()
 diagnosis = get_diagnosis(os.path.join(base_path, 'DIAGNOSES_ICD.csv'), ICD_code_length)
 print("Total number of HADM_ID: {}\n".format(len(diagnosis)))
 print("Example: raw data")
@@ -64,6 +67,8 @@ if args.generatesplits:
 splits = pickle.load(open(os.path.join(base_path, "hadm_id_train_valid_test_splits.pkl"), 'rb'))
 print("Length train: {} valid: {} test: {}".format(len(splits[0]),len(splits[1]),len(splits[2])))
 top_diagnoses = get_top_diagnoses(diagnosis, num_labels)
+with open(os.path.join(base_path, "labels.pkl"), 'wb') as f:
+    pickle.dump(top_diagnoses, f)
 print("Top diagnoses: {}\n".format(top_diagnoses))
 processed_diagnoses = remove_diagnoses_not_intopK(diagnosis, top_diagnoses)
 print("Example after processing ICD codes")
@@ -93,10 +98,47 @@ print(data[0])
 print()
 print(data[1])
 print()
-print(data[2])
+# split datasets
+train_data, valid_data, test_data = split_data(data, splits)
+print("Length of split data: train: {}, valid: {}, test: {}".format(
+    len(train_data), len(valid_data), len(test_data)
+))
+# Tokenize (using python tokenization as spacy is slow)
+start = time.time()
+train_data = tokenize_by_sent_alt(train_data)
+end = time.time()
+print("Time for python tokenization on training data: {:.3f}".format(end - start))
+valid_data = tokenize_by_sent_alt(valid_data)
+test_data = tokenize_by_sent_alt(test_data)
+print("EXAMPLES AFTER TOKENIZATION")
+print(len(train_data[0][1]))
+print(train_data[0])
 print()
-# tokenize
-# write to files
-write_to_file(os.path.join(base_path, 'processed_data.csv'), data)
-# Load file
-# Vocabify and generate training valid and test splits
+print(len(valid_data[0][1]))
+print(valid_data[0])
+print()
+# Vocabify
+vocab = extract_vocab(train_data, vocab_count_threshold)
+print("Vocabifying training data...")
+train_data = vocabify_text(train_data, vocab, map_unk_using_edit_dist)
+print("Vocabifying valid data...")
+valid_data = vocabify_text(valid_data, vocab, map_unk_using_edit_dist)
+print("Vocabifying test data...")
+test_data = vocabify_text(test_data, vocab, map_unk_using_edit_dist)
+print("EXAMPLES AFTER VOCAB EXTRACTION AND DATA PREP")
+print(len(train_data[0][1]))
+print(train_data[0])
+print()
+print(len(valid_data[0][1]))
+print(valid_data[0])
+print()
+# # write to files
+with open(os.path.join(base_path, args.procdatafile + '_train_data.pkl'), 'wb') as f:
+    pickle.dump(train_data, f)
+with open(os.path.join(base_path, args.procdatafile + '_valid_data.pkl'), 'wb') as f:
+    pickle.dump(valid_data, f)
+with open(os.path.join(base_path, args.procdatafile + '_test_data.pkl'), 'wb') as f:
+    pickle.dump(test_data, f)
+print("Written data to file")
+total_time = time.time() - total_start
+print("Total time to process data {:.2f}".format(total_time))

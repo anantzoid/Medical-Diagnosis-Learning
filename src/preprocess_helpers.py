@@ -3,6 +3,26 @@ import csv
 from collections import Counter
 import editdistance
 import random
+import spacy
+from spacy.lang.en import English
+#nlp = spacy.load("en")
+random.seed(101)
+UNKS = 0
+
+def split_data(data, splits):
+    train = []
+    valid = []
+    test = []
+    for d in data:
+        if d[0] in splits[0]:
+            train.append(d)
+        elif d[0] in splits[1]:
+            valid.append(d)
+        elif d[0] in splits[2]:
+            test.append(d)
+        else:
+            print("ERROR, HADM ID not in splits")
+    return (train, valid, test)
 
 def split_hadm_ids(diagnosis):
     training = []
@@ -18,21 +38,109 @@ def split_hadm_ids(diagnosis):
             test.append(key)
     return (training, valid, test)
 
-# def tokenize(data):
-#     for d in data:
-#         if 'notes' in d:
-#             new_notes = []
-#             for i, note in enumerate(d['notes']):
-#                 n = tokenize(note['note'])
+def tokenize_by_sent(data):
+    for i, d in enumerate(data):
+        n = nlp(d[1])
+        n = [sent.string.strip().lower() for sent in n.sents]
+        n = [[str(tok) for tok in nlp.tokenizer(sent)] for sent in n]
+        d[1] = n
+        if i % 5000 == 0:
+            print("Tokenized {} notes".format(i))
+    return data
 
-def extract_vocab(data, threshold):
-    pass
+def tokenize_by_sent_alt(data):
+    for i, d in enumerate(data):
+        n = d[1]
+        n = [sent.strip().lower() for sent in n.split('.')]
+        n = [[str(tok) for tok in sent.split(' ') if tok is not ' '] for sent in n]
+        d[1] = n
+        if i % 5000 == 0:
+            print("Tokenized {} notes".format(i))
+    return data
+
+def extract_vocab(train_data, threshold):
+    vocab = []
+    for d in train_data:
+        note = d[1]
+        for sent in note:
+            vocab.extend(sent)
+    all_counts = list(Counter(vocab).most_common())
+    counts = [_[0] for _ in all_counts if _[1] >= 5]
+    # counts = list(Counter(vocab).most_common())
+    print("Total tokens: {}, Size of vocabulary: {}".format(len(all_counts),len(counts)))
+    print("Top 100 words...")
+    print(counts[:100])
+    print()
+    return counts
 
 def find_closest_word(word, vocab):
-    pass
+    global UNKS
+    UNKS += 1
+    dist = []
+    for v in vocab:
+        d = editdistance.eval(word, v)
+        dist.append((v,d))
+    dist = sorted(dist, key=lambda x: x[1])
+    dist_min = [_[0] for _ in dist if _[1] == dist[0][1]]
+    # print("{}".format(dist[:25]))
+    # print("{} : {}".format(word, dist_min))
+    # If there are multiple words with the same edit dist
+    # Select the new word which contains the original or
+    # is contained by the original word
+    # Otherwise select the first word in the list
+    selected = [w for w in dist_min if word in w or w in word]
+    # print(selected)
+    if len(selected) > 0:
+        # print(selected[0])
+        return selected[0]
+    else:
+        # print(dist_min[0])
+        return dist_min[0]
 
-def vocabify_text(data, vocab):
-    pass
+def find_closest_word_original(word, vocab):
+    global UNKS
+    UNKS += 1
+    dist = []
+    for v in vocab:
+        d = editdistance.eval(word, v)
+        dist.append((v,d))
+    dist = sorted(dist, key=lambda x: x[1])
+    # print("{} : {}".format(word, dist[:25]))
+    # print(dist[0][0])
+    return dist[0][0]
+
+def vocabify_text(data, vocab, mapunk):
+    global UNKS
+    UNKS = 0
+    if mapunk == 2:
+        print("Mapping unknown words to word with closest edit distance and either contains or is contained by original word")
+    elif mapunk == 1:
+        print("Mapping unknown words to word with closest edit distance")
+    else:
+        print("Mapping unknown words to 'UNK'")
+    for i, d in enumerate(data):
+        note = d[1]
+        if mapunk == 2:
+            n = [[tok if tok in vocab else find_closest_word(tok, vocab) for tok in sent] for sent in note]
+        elif mapunk == 1:
+            n = [[tok if tok in vocab else find_closest_word_original(tok, vocab) for tok in sent] for sent in note]
+        else:
+            n = [[tok if tok in vocab else 'UNK' for tok in sent] for sent in note]
+            UNKS += sum([1 for sent in n for tok in sent if tok is 'UNK'])
+        d[1] = n
+        if i % 1000 == 0:
+            print("Vocabified {} notes".format(i))
+    print("Total unknown words: {}, unk per note: {}".format(UNKS, UNKS / (len(data) * 1.)))
+    return data
+
+def add_space_to_punc(text):
+    text = re.sub('([.,!?:;])', r' \1 ', text)
+    text = re.sub('\s{2,}', ' ', text)
+    return text
+
+def remove_brackets(text):
+    text = re.sub('\[\*\*.*\*\*\]', ' ', text).replace('  ', ' ')
+    return text
 
 def replace_numbers(text):
     text = re.sub("[0-9]", "d", text)
@@ -43,7 +151,9 @@ def replace_break(text):
     return text
 
 function = {'replace numbers' : replace_numbers,
-            'replace break'   : replace_break}
+            'replace break'   : replace_break,
+            'remove brackets' : remove_brackets,
+            'add space'       : add_space_to_punc}
 
 def get_diagnosis(label_path, icd_length):
     with open(label_path, 'r') as csvf:
