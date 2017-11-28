@@ -57,8 +57,11 @@ crit = nn.BCEWithLogitsLoss()
 params = list(model.parameters())
 opti = torch.optim.Adam(params)
 if args.cuda:
+    print("Using cuda")
     model.cuda()
     opti.cuda()
+else:
+    print("Using CPU only")
 
 for i in range(args.epochs):
     data_size = len(train_loader)
@@ -78,4 +81,4 @@ for i in range(args.epochs):
         opti.step()
         if j % 1 == 0:
             print("Epoch: {}, Batch: {}/{}, loss: {}".format(i, j, data_size, loss))
-    # evaluate(model, valid_loader, args.batchsize, crit, args.cuda)
+    evaluate(model, valid_loader, args.batchsize, crit, args.cuda)
