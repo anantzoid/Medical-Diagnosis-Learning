@@ -44,7 +44,7 @@ ENGLISH_STOP_WORDS = frozenset([
     "wherein", "whereupon", "wherever", "whether", "which", "while", "whither",
     "who", "whoever", "whole", "whom", "whose", "why", "will", "with",
     "within", "without", "would", "yet", "you", "your", "yours", "yourself",
-    "yourselves"])
+    "yourselves", ":", ",", "?", ""])
 
 class FlatData(data.Dataset):
     def __init__(self, data, word_2_idx, label_map):

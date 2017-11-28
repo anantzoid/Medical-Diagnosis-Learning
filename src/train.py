@@ -22,7 +22,7 @@ parser.add_argument('--epochs', type=int, default=10, help="Number of epochs")
 parser.add_argument('--batchsize', type=int, default=32, help="Batch size")
 parser.add_argument('--embeddim', type=int, default=50, help="Embedding dim")
 parser.add_argument('--hiddendim', type=int, default=50, help="Hidden dim")
-parser.add_argument('--lr', type=float, default=0.001, help="Learning rate")
+parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate")
 parser.add_argument('--cuda', type=int, default=0, help="Batch size")
 parser.add_argument('--gpu', type=int, default=0, help="Which gpu to use")
 parser.add_argument('--stop', type=int, default=0, help="Whether to remove stopwords")
@@ -69,7 +69,7 @@ if args.cuda:
 else:
     print("Using CPU only")
 params = list(model.parameters())
-opti = torch.optim.Adam(params)
+opti = torch.optim.Adam(params, lr=args.lr)
 
 def evaluate(model, loader, crit, cuda, bs, num_labels):
     data_size = len(loader)
