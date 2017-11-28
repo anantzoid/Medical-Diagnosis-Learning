@@ -1,21 +1,23 @@
 def evaluate(model, loader, batch_size, crit, use_cuda):
+    model.eval()
     import torch
     from torch.autograd import Variable
     correct = 0
     total = 0
-
-    for batch in loader:
+    for i, batch in enumerate(loader):
         if batch[0].size(0) != batch_size:
             continue
         x = Variable(batch[0])
-        y = Variable(batch[1])#.view(-1))
+        y = Variable(batch[1])
         if use_cuda:
             x, y = x.cuda(), y.cuda()
-
-        #hidden = model.init_hidden()
-        x = model(x)#, hidden)
-        loss = crit(x, y)
-        predicted = x.data > 0.5
+        out = model(x)
+        loss = crit(out, y)
+        predicted = out.data > 0.5
         total += batch[1].size(0)
         correct += (predicted.float() == y.data).sum()
-    return (correct / float(total), loss.data[0], predicted[:10])
+        if i % 20 == 0:
+            print("Processed {} batches".format(i))
+    print("% correct: {}, loss: {}, predicted: {}".format(
+        correct / float(total), loss.data[0], predicted[:10]
+    ))
