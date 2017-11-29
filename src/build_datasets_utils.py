@@ -74,10 +74,10 @@ class FlatData(data.Dataset):
 
     def __len__(self):
         return len(self.data)
-    
+
     def get_dx_index(self, index):
         return self.data[index]['dx_index']
-        
+
     def get_words(self, index):
         return self.data[index]['words']
 
@@ -91,15 +91,19 @@ def flat_batch_collate(batch):
         for j, word in enumerate(example[0]):
             x[i, j] = float(word)
     y = np.stack(y)
-    # print(batch[0][0][50:55])
-    # print(x[0][50:55])
-    # print(batch[0][1])
-    # print(y[0])
-    # print(batch[8][0][50:55])
-    # print(x[8][50:55])
-    # print(batch[8][1])
-    # print(y[8])
     return (x.long(), torch.from_numpy(y))
+
+def flat_batch_collate_with_lengths(batch):
+    lengths = [len(_[0]) for _ in batch]
+    max_note_len = max(lengths)
+    x = torch.zeros(len(batch), max_note_len)
+    y = []
+    for i, example in enumerate(batch):
+        y.append(np.asarray(example[1]))
+        for j, word in enumerate(example[0]):
+            x[i, j] = float(word)
+    y = np.stack(y)
+    return (x.long(), torch.from_numpy(y), torch.FloatTensor(lengths))
 
 
 def build_dictionary(train_data, PADDING):
@@ -148,5 +152,5 @@ def remove_stopwords(data):
     print("Avg length before: {}, avg length after removing stopwords: {}".format(
         avg_length_before / float(len(data)), avg_length_after / float(len(data))))
     print("Max length before: {}, max length after removing stopwords: {}".format(
-       max_b, max_a)) 
+       max_b, max_a))
     return data
