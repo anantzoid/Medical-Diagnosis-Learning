@@ -8,6 +8,8 @@ import torch.utils.data as data
 import torch.nn as nn
 from torch.autograd import Variable
 from build_datasets_utils import *
+from embedding_utils import * ## for embeddings
+import subprocess ## for embeddings
 from models import LSTMModel
 PADDING = '<PAD>'
 num_workers = 1
@@ -26,6 +28,9 @@ parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate")
 parser.add_argument('--cuda', type=int, default=0, help="Batch size")
 parser.add_argument('--gpu', type=int, default=0, help="Which gpu to use")
 parser.add_argument('--stop', type=int, default=0, help="Whether to remove stopwords")
+parser.add_argument('--init_embed', type=int, default=1, help="Whether to use starspace to initialize embeddings") ## for embeddings
+parser.add_argument('--labeled_embed', type=int, default=1, help="Whether to use labeled or unlabeled initial embeddings") ## for embeddings
+parser.add_argument('--starspace', type=str, default="Starspace/starspace", help="Where is the starspace executible?") ## for embeddings
 args = parser.parse_args()
 print(args)
 print()
@@ -53,6 +58,49 @@ valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
                                            shuffle=False,
                                            num_workers=num_workers,
                                            collate_fn=flat_batch_collate)
+
+## Create embeddings from training set
+# First, check the path exists
+if not os.path.isfile(args.starspace):
+    print("Could not find the Starspace executible, reverting to default embeddings...")
+# second, take train_dataset to create starspace formatted file
+# using local embedding_utils. 
+train_starspace = convert_flatdata_to_starspace_format(train_dataset, flag_labeled = bool(args.labeled_embed), label_prefix = "__label__")
+
+## file written, now call starspace depending on the labeled/UNlabeled flag.
+## placing SS model into modelfolder
+## SS command needs to look like:
+## ../Starspace/starspace train -trainFile <dirpath>/<trainfile>.txt -model <modelfolder>/(UN)labeled_starspace_model -trainMode 0 -label '__label__'
+
+if bool(args.labeled_embed) == True:
+    ss_data_path = os.path.join(args.datafolder, args.dataset + "_train_data_starspace_labeled.txt")
+    ss_model_path = os.path.join(args.modelfolder, 'labeled_starspace_embeddings')
+    ss_paras = [args.starspace, 'train', '-trainFile', ss_data_path, '-model', ss_model_path, '-trainMode', '0', '-label', '__label__', '-dim', str(args.embeddim), '-epoch', str(args.epochs), '-normalizeText', '0']
+else:
+    ss_data_path = os.path.join(args.datafolder, args.dataset + "_train_data_starspace_unlabeled.txt")
+    ss_model_path = os.path.join(args.modelfolder, 'unlabeled_starspace_embeddings')
+    ss_paras = [args.starspace, 'train', '-trainFile', ss_data_path, '-model', ss_model_path, '-trainMode', '5', '-label', '__label__', '-dim', str(args.embeddim), '-epoch', str(args.epochs), '-normalizeText', '0']
+
+print(ss_data_path)
+print(ss_model_path)
+
+write_starspace_format(train_starspace, ss_data_path)
+
+print("Starspace call: ")
+print(" ".join(ss_paras))
+print(ss_paras)
+ss_output = subprocess.run(ss_paras, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+## print Starspace outputs
+print(ss_output.stdout.decode('utf-8'))
+print(ss_output.stderr.decode('utf-8'))
+
+## Did it finish?
+last_output = " ".join(ss_output.stdout.decode("utf-8").split('\n')[-2:])
+if "Saving model in tsv format" not in last_output:
+    ## won't save a file if it doesn't finish.
+    print('Starspace did not complete. PANIC! \nReverting to default initialization.')
+    args.init_embed = 0 ## change the parameter to not use Starspace embeddings later.
+
 
 # Init models, opt and criterion
 if args.model is 'LSTM':
