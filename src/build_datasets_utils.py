@@ -52,6 +52,7 @@ class FlatData(data.Dataset):
         for i, row in enumerate(data):
             hadm_id = row[0]
             text = [word_2_idx[word] for sent in row[1] for word in sent]
+            words = [word for sent in row[1] for word in sent] ## for embeddings
             label = [label_map[l] for l in row[2].split(' ')]
             label_onehot = np.zeros(len(label_map.keys()))
             for l in label:
@@ -64,6 +65,8 @@ class FlatData(data.Dataset):
             data[i]['text_index_sequence'] = text
             data[i]['label'] = label_onehot
             data[i]['id'] = hadm_id
+            data[i]['words'] = words ## for embeddings
+            data[i]['dx_index'] = row[2].split(' ') ## for embeddings
         self.data = data
 
     def __getitem__(self, index):
@@ -71,6 +74,12 @@ class FlatData(data.Dataset):
 
     def __len__(self):
         return len(self.data)
+    
+    def get_dx_index(self, index):
+        return self.data[index]['dx_index']
+        
+    def get_words(self, index):
+        return self.data[index]['words']
 
 
 def flat_batch_collate(batch):
