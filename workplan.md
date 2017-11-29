@@ -86,3 +86,13 @@ Issues:
 		* 59652 notes, 59652 discharge notes, ratio: 100.0
 		* Average length of note (chars): 2047.46
 		* Types of notes: {'Discharge summary': 59652}
+
+- 11/28: Vincent added Starspace embedding initialization
+	* additions to train.py
+		* 3 new arguments, some logic in the middle
+		* VINCENT DID NOT ACTUALLY ADD THE EMBEDDINGS INTO THE MODEL INITIALIZATION STEP
+	* a new embedding_utils.py in src/
+	* TO DO:
+		* initialize the model with these embeddings
+			* write a helper to load the embedding tsv
+			* map words to indicies to embeddings tensor
