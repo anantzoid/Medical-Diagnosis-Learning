@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from build_datasets_utils import *
 from embedding_utils import * ## for embeddings
 import subprocess ## for embeddings
-from models import LSTMModel, FastText
+from models import LSTMModel
 PADDING = '<PAD>'
 num_workers = 1
 
@@ -63,6 +63,7 @@ valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
                                            shuffle=False,
                                            num_workers=num_workers,
                                            collate_fn=collate_fn)
+
 ## Create embeddings from training set
 # First, check the path exists
 if not os.path.isfile(args.starspace):
@@ -105,10 +106,11 @@ if "Saving model in tsv format" not in last_output:
     print('Starspace did not complete. PANIC! \nReverting to default initialization.')
     args.init_embed = 0 ## change the parameter to not use Starspace embeddings later.
 
+
 # Init models, opt and criterion
 if args.model == 'FastText':
-    print("Using Fast Text model")
-    model = FastText(len(vocab), args.embeddim)
+    print("Using FastText model")
+    model = FastText(len(vocab), args.embeddim, len(label_map))
 else:
     print("Using LSTM model")
     model = LSTMModel(len(vocab), args.embeddim, args.hiddendim, label_map, args.batchsize, args.cuda)
