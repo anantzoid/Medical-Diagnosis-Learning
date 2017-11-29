@@ -319,6 +319,7 @@ def convert_format(data):
                     else:
                         # Just use first note for now
                         # datapoint[1] += ". " + note['note']
+                        print("Just using first note...")
         if len(datapoint) != 0:
             new_data.append(datapoint)
     return new_data
