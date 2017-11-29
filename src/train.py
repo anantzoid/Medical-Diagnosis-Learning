@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from build_datasets_utils import *
 from embedding_utils import * ## for embeddings
 import subprocess ## for embeddings
-from models import LSTMModel
+from models import LSTMModel, FastText
 PADDING = '<PAD>'
 num_workers = 1
 
