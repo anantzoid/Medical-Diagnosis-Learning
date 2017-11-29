@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from build_datasets_utils import *
 from embedding_utils import * ## for embeddings
 import subprocess ## for embeddings
-from models import LSTMModel
+from models import LSTMModel, FastText
 PADDING = '<PAD>'
 num_workers = 1
 
@@ -49,7 +49,7 @@ print("Labels: {}\n, label map: {}".format(labels, label_map))
 train_dataset = FlatData(train_data, word_2_idx, label_map)
 valid_dataset = FlatData(valid_data, word_2_idx, label_map)
 collate_fn = None
-if args.model is 'FastText':
+if args.model == 'FastText':
     collate_fn = flat_batch_collate_with_lengths
 else:
     collate_fn = flat_batch_collate
@@ -63,7 +63,6 @@ valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
                                            shuffle=False,
                                            num_workers=num_workers,
                                            collate_fn=collate_fn)
-
 ## Create embeddings from training set
 # First, check the path exists
 if not os.path.isfile(args.starspace):
@@ -106,11 +105,12 @@ if "Saving model in tsv format" not in last_output:
     print('Starspace did not complete. PANIC! \nReverting to default initialization.')
     args.init_embed = 0 ## change the parameter to not use Starspace embeddings later.
 
-
 # Init models, opt and criterion
-if args.model is 'FastText':
+if args.model == 'FastText':
+    print("Using Fast Text model")
     model = FastText(len(vocab), args.embeddim)
 else:
+    print("Using LSTM model")
     model = LSTMModel(len(vocab), args.embeddim, args.hiddendim, label_map, args.batchsize, args.cuda)
 crit = nn.BCEWithLogitsLoss()
 if args.cuda:
@@ -140,18 +140,18 @@ def evaluate(model, loader, crit, cuda, bs, num_labels, model_type):
         x = Variable(batch[0])
         y = Variable(batch[1])
         lengths = None
-        if model_type is 'FastText':
+        if model_type == 'FastText':
             lengths = Variable(batch[2])
         if cuda:
             x = x.cuda()
             y = y.cuda()
-            if model_type is 'FastText':
+            if model_type == 'FastText':
                 lengths = lengths.cuda()
         if x.size(0) != bs:
             continue
         avg_length += x.data.size(1)
         model.eval()
-        if model_type is 'FastText':
+        if model_type == 'FastText':
             out = model(x, lengths)
         else:
             out = model(x)
@@ -192,18 +192,18 @@ for i in range(args.epochs):
         x = Variable(batch[0])
         y = Variable(batch[1])
         lengths = None
-        if args.model is 'FastText':
+        if args.model == 'FastText':
             lengths = Variable(batch[2])
         if args.cuda:
             x = x.cuda()
             y = y.cuda()
-            if args.model is 'FastText':
+            if args.model == 'FastText':
                 lengths = lengths.cuda()
         if x.size(0) != args.batchsize:
             continue
         avg_length += x.data.size(1)
         model.eval()
-        if args.model is 'FastText':
+        if args.model == 'FastText':
             out = model(x, lengths)
         else:
             out = model(x)
