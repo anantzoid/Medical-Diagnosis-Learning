@@ -35,8 +35,8 @@ class WordModel(nn.Module):
         return self.word_rnn(x, _hidden)
         
    
-    def init_hidden(self, b_size):
-        hidden1 = Variable(torch.zeros(2, b_size,  self.hidden_dim))
+    def init_hidden(self, b_size, volatile=False):
+        hidden1 = Variable(torch.zeros(2, b_size,  self.hidden_dim), volatile=volatile)
         #hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
         return hidden1#, hidden2)
 
@@ -61,12 +61,12 @@ class Attend(nn.Module):
         #print ("single attend:", attends[0].size())
         attends = torch.cat(attends)
         #print("cat attention:", attends.size())
-        attn_combine = torch.mul(attends, self.context)
+        attends = torch.mul(attends, self.context)
         #print("attention_combine:", attn_combine.size())        
-        alpha = self.sm(attn_combine.contiguous().view(-1, self.hidden_dim))
+        attends = self.sm(attends.contiguous().view(-1, self.hidden_dim))
         #print("sm size:", alpha.size())
         #print(x.size())
-        attended = torch.mul(x, alpha).contiguous().view(self.batch_size, sentence_size, -1, self.hidden_dim)
+        attended = torch.mul(x, attends).contiguous().view(self.batch_size, sentence_size, -1, self.hidden_dim)
         #print("x.alpha prod:", attended.size())
         attended = torch.sum(attended, 2)
         #print("attended sum:", attended.size())
@@ -81,8 +81,8 @@ class SentModel(nn.Module):
     def forward(self, x, _hidden):
         x = torch.transpose(x, 1, 0)
         return self.sent_rnn(x, _hidden)
-    def init_hidden(self):
-        hidden1 = Variable(torch.zeros(2, self.batch_size,  self.hidden_dim))
+    def init_hidden(self, volatile=False):
+        hidden1 = Variable(torch.zeros(2, self.batch_size,  self.hidden_dim), volatile=volatile)
         #hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
         return hidden1#, hidden2)      
 
@@ -107,24 +107,25 @@ class Ensemble(nn.Module):
         self.sentattention = Attend(batch_size, 4*hidden_dim)
         self.clf = Classifer(4*hidden_dim, len(label_map.keys()))
 
-    def forward(self, batch_x, word_hidden, sent_hidden):
+    def forward(self, x, word_hidden, sent_hidden):
         #print("raw size:", batch_x.size())
-        x, hidden = self.word_rnn(batch_x, word_hidden)
+        true_batch_size = x.size()
+        x, hidden = self.word_rnn(x, word_hidden)
         #print("word rnn op size:", x.size())
         #print("word rnn hidden size:", hidden.size())    
-        x = x.contiguous().view(batch_x.size(2), batch_x.size(0)*batch_x.size(1), -1) # sent_size x batch_size x 2*hidd
+        x = x.contiguous().view(true_batch_size[2], true_batch_size[0]*true_batch_size[1], -1) # sent_size x batch_size x 2*hidd
         #print("============")
         #print("word attention ip size:", x.size())
-        sentence_reprs = self.wordattention(x, batch_x.size(1)) # batch_size x sent_size x 2*hidden
-        #print(sentence_reprs.size())
+        x = self.wordattention(x, true_batch_size[1]) # batch_size x sent_size x 2*hidden
+        #print(sent_op())
         #print("============")    
-        sent_op, sent_hidden = self.sent_rnn(sentence_reprs, sent_hidden)
+        x, sent_hidden = self.sent_rnn(x, sent_hidden)
         #print("sent rnn op size:", sent_op.size())
-        sent_op = sent_op.contiguous().view(batch_x.size(1), self.batch_size, -1) # sent_size x batch_size x 2*hidden
-        sent_att = self.sentattention(sent_op, 1)
-        sent_att = sent_att.contiguous().view(self.batch_size, 4*self.hidden_dim)
-        pred_prob = self.clf(sent_att)
-        return pred_prob
+        x = x.contiguous().view(true_batch_size[1], self.batch_size, -1) # sent_size x batch_size x 2*hidden
+        x = self.sentattention(x, 1)
+        x = x.contiguous().view(self.batch_size, 4*self.hidden_dim)
+        x = self.clf(x)
+        return x
 
 
 def xavier_weight_init(m):

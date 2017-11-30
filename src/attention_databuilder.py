@@ -15,14 +15,19 @@ def get_labels(data):
     labels = []
     for row in data:
         labels.append(row[-1].split(' ')[0])
+    print Counter(labels)
     return list(set(labels))
 
-def build_vocab(data, PAD):
+def build_vocab(data, PAD, UNKNOWN, vocab_threshold):
     vocab = []
     for row in data:
         for text in row[1]:
             vocab.extend(text)
-    vocab = [PAD] + list(set(vocab))
+    vocab = Counter(vocab)
+    
+    vocab = list(set([word for word in vocab if vocab[word] > vocab_threshold]))
+    vocab.remove(UNKNOWN)
+    vocab = [PAD, UNKNOWN] + vocab
     token2idx = {i:_ for _,i in enumerate(vocab)}
     return (vocab, token2idx)
 
@@ -31,7 +36,8 @@ class NotesData(Dataset):
         super(NotesData, self).__init__()
         data_proc = []
         for i, row in enumerate(data):
-            token_seq = [[token2idx.get(word, token2idx[UNKNOWN]) for word in sent] for sent in row[1]]
+            #### NOTE using last 10 sent for validating memory leak reason ###
+            token_seq = [[token2idx.get(word, token2idx[UNKNOWN]) for word in sent] for sent in row[1]][-10:]
             label = label_map[row[2].split(' ')[0]]
             data_proc.append([token_seq, label])
         self.data = data_proc

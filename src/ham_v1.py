@@ -21,9 +21,9 @@ from attention_models import *
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--log_path', type=str, default='log/hamv1')
-parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL3_UNK_content_4_train_data.pkl')
-parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL3_UNK_content_4_valid_data.pkl')
-parser.add_argument('--args', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/hamv1.pth')
+parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL5_UNK_content_4_train_data.pkl')
+parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL5_UNK_content_4_valid_data.pkl')
+parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/hamv1.pth')
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--embed_dim', type=int, default=50)
@@ -33,6 +33,7 @@ parser.add_argument('--lr_decay_rate', type=float, default=0.9)
 parser.add_argument('--lr_decay_epoch', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=10)
 parser.add_argument('--log_interval', type=int, default=100)
+parser.add_argument('--vocab_threshold', type=int, default=50)
 parser.add_argument('--gpu_id', type=int, default=1)
 args = parser.parse_args()
 print(args)
@@ -46,7 +47,8 @@ torch.manual_seed(1)
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     torch.cuda.set_device(args.gpu_id)
-    
+    #torch.backends.cudnn.enabled = False    
+
 # data reader 
 if not os.path.exists(args.log_path):
     os.makedirs(args.log_path)
@@ -55,9 +57,11 @@ traindata = pickle.load(open(args.train_path, 'r'))
 valdata = pickle.load(open(args.val_path, 'r'))
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
-vocabulary, token2idx  = build_vocab(traindata, PADDING)
+exit()
+vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
 print("Train size:", len(traindata))
 print("Vocab size:", len(vocabulary))
+#print(vocabulary[:20])
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
@@ -93,8 +97,9 @@ for n_e in range(args.num_epochs):
         sent_hidden = model.sent_rnn.init_hidden()
         if use_cuda:
             word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
-
-        model.zero_grad()
+        
+        #model.zero_grad()
+        opti.zero_grad()
         batch_x = Variable(batch[0])
         batch_y = Variable(batch[1])        
                         
@@ -116,22 +121,22 @@ for n_e in range(args.num_epochs):
                 if batch[0].size(0) != args.batch_size:
                     continue
 
-                word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
-                sent_hidden = model.sent_rnn.init_hidden()
+                word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1), True)
+                sent_hidden = model.sent_rnn.init_hidden(True)
                 if use_cuda:
                     word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
 
-                batch_x, batch_y = Variable(batch[0], volatile=True), Variable(batch[1]) 
+                batch_x, val_batch_y = Variable(batch[0], volatile=True), Variable(batch[1]) 
                 if use_cuda:
-                    batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
+                    batch_x, val_batch_y = batch_x.cuda(), val_batch_y.cuda()
 
                 outputs = model(batch_x, word_hidden, sent_hidden)
-                val_loss = crit(outputs, batch_y)
+                val_loss = crit(outputs, val_batch_y)
                 val_loss_mean += val_loss.data[0]
 
                 _, predicted = torch.max(outputs.data, 1)
-                correct += predicted.eq(batch_y.data).cpu().sum()
+                correct += predicted.eq(val_batch_y.data).cpu().sum()
 
             train_loss_mean = np.mean(train_loss_mean)
             print(correct, len(val_loader.dataset))
@@ -157,5 +162,7 @@ for n_e in range(args.num_epochs):
         args.lr *= args.lr_decay_rate
         print("LR changed to", args.lr)
         opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
+    print(predicted[:20])
+    print(val_batch_y[:20])
     
     torch.save(model.state_dict(), args.model_file)
