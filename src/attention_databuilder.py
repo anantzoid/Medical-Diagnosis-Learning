@@ -37,8 +37,8 @@ class NotesData(Dataset):
         data_proc = []
         for i, row in enumerate(data):
             #### NOTE using last 10 sent for validating memory leak reason ###
-            token_seq = [[token2idx.get(word, token2idx[UNKNOWN]) for word in sent] for sent in row[1]][-10:]
-            label = label_map[row[2].split(' ')[0]]
+            token_seq = [[token2idx.get(word, token2idx[UNKNOWN]) for word in sent] for sent in row[1]]#[-10:]
+            label = label_map[row[2]]#.split(' ')[0]]
             data_proc.append([token_seq, label])
         self.data = data_proc
 

@@ -3,8 +3,8 @@ import csv
 from collections import Counter
 import editdistance
 import random
-import spacy
-from spacy.lang.en import English
+#import spacy
+#from spacy.lang.en import English
 #nlp = spacy.load("en")
 random.seed(101)
 UNKS = 0
@@ -50,12 +50,15 @@ def tokenize_by_sent(data):
 
 def tokenize_by_sent_alt(data):
     for i, d in enumerate(data):
-        n = d[1]
-        n = [sent.strip().lower() for sent in n.split('.')]
-        n = [[str(tok) for tok in sent.split(' ') if tok is not ' '] for sent in n]
-        d[1] = n
-        if i % 5000 == 0:
-            print("Tokenized {} notes".format(i))
+        try:
+            n = d[1]
+            n = [sent.strip().lower() for sent in n.split('.')]
+            n = [[str(tok) for tok in sent.split(' ') if tok is not ' '] for sent in n]
+            d[1] = n
+            if i % 5000 == 0:
+                print("Tokenized {} notes".format(i))
+        except:
+            data.remove(d)
     return data
 
 def extract_vocab(train_data, threshold):

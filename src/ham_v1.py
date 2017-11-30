@@ -74,6 +74,7 @@ def get_yelp_train_data(yelp_file):
     clean_data = []
     with open(yelp_file, 'rb') as f:
         data = f.readlines()
+    data = data[:1000]
     data = list(map(lambda x: x.rstrip(), data))
     for d in data:
         d = json.loads(d)
@@ -90,11 +91,11 @@ def get_yelp_train_data(yelp_file):
     token2idx = {i:_ for _,i in enumerate(vocab)}
     label_map = {i:_ for _,i in enumerate(list(set([_[2] for _ in traindata])))}
 
-    return (traindata, testdata, token2idx, label_map)
+    return (traindata, testdata, token2idx, label_map, vocab)
 
 yelp_file = '/misc/vlgscratch2/LecunGroup/anant/nlp/dataset/review.json'
 #yelp_file = '/Users/jedi/Downloads/dataset/review.json'
-traindata, testdata, token2idx, label_map = get_yelp_train_data(yelp_file)
+traindata, valdata, token2idx, label_map, vocabulary = get_yelp_train_data(yelp_file)
 
 '''
 print(traindata[:10])
