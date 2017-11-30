@@ -317,7 +317,9 @@ def convert_format(data):
                         icd_str = str(" ".join([icd for icd in data[key]['labels']['icd']]))
                         datapoint.append(icd_str)
                     else:
-                        datapoint[1] += ". " + note['note']
+                        # Just use first note for now
+                        # datapoint[1] += ". " + note['note']
+                        print("Just using first note...")
         if len(datapoint) != 0:
             new_data.append(datapoint)
     return new_data

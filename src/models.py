@@ -39,13 +39,42 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         x = self.embed(x)
-        # print(x.data.shape)
         x = torch.transpose(x, 1, 0)
-        # print(x.data.shape)
         x, _hidden = self.lstm(x, self.hidden)
-        # print(x.data.shape)
         x = x[-1, :, :].view(self.batch_size, -1)
-        # print(x.data.shape)
         x = self.lin(x)
-        # print(x.data.shape)
         return x
+
+class FastText(nn.Module):
+    """
+    FastText model
+    """
+    def __init__(self, vocab_size, emb_dim, out_dim):
+        """
+        @param vocab_size: size of the vocabulary.
+        @param emb_dim: size of the word embedding
+        """
+        super(FastText, self).__init__()
+        self.embed = nn.Embedding(vocab_size + 2, emb_dim, padding_idx=0)
+        self.linear1 = nn.Linear(emb_dim, out_dim)
+        self.init_weights()
+
+    def forward(self, data, length):
+        """
+        @param data: matrix of size (batch_size, max_sentence_length). Each row in data represents a
+            review that is represented using n-gram index. Note that they are padded to have same length.
+        @param length: an int tensor of size (batch_size), which represents the non-trivial (excludes padding)
+            length of each sentences in the data.
+        """
+        out = self.embed(data)
+        out = torch.sum(out, dim=1)
+        length = length.type(torch.FloatTensor).unsqueeze(1)
+        out = torch.div(out, length)
+        out = self.linear1(out)
+        return out
+
+    def init_weights(self):
+        init_range = 0.1
+        self.embed.weight.data.uniform_(-init_range, init_range)
+        self.linear1.weight.data.uniform_(-init_range, init_range)
+        self.linear1.bias.data.fill_(0)

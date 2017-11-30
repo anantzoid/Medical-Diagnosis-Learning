@@ -25,8 +25,8 @@ ENGLISH_STOP_WORDS = frozenset([
     "latterly", "least", "less", "ltd", "made", "many", "may", "me",
     "meanwhile", "might", "mill", "mine", "more", "moreover", "most", "mostly",
     "move", "much", "must", "my", "myself", "name", "namely", "neither",
-    "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone",
-    "nor", "not", "nothing", "now", "nowhere", "of", "off", "often", "on",
+    "never", "nevertheless", "next", "nine", "nobody", "noone",
+    "nor", "now", "nowhere", "of", "off", "often", "on",
     "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our",
     "ours", "ourselves", "out", "over", "own", "part", "per", "perhaps",
     "please", "put", "rather", "re", "same", "see", "seem", "seemed",
@@ -44,7 +44,7 @@ ENGLISH_STOP_WORDS = frozenset([
     "wherein", "whereupon", "wherever", "whether", "which", "while", "whither",
     "who", "whoever", "whole", "whom", "whose", "why", "will", "with",
     "within", "without", "would", "yet", "you", "your", "yours", "yourself",
-    "yourselves"])
+    "yourselves", ":", ",", "?", ""])
 
 class FlatData(data.Dataset):
     def __init__(self, data, word_2_idx, label_map):
@@ -52,6 +52,7 @@ class FlatData(data.Dataset):
         for i, row in enumerate(data):
             hadm_id = row[0]
             text = [word_2_idx[word] for sent in row[1] for word in sent]
+            words = [word for sent in row[1] for word in sent] ## for embeddings
             label = [label_map[l] for l in row[2].split(' ')]
             label_onehot = np.zeros(len(label_map.keys()))
             for l in label:
@@ -64,6 +65,8 @@ class FlatData(data.Dataset):
             data[i]['text_index_sequence'] = text
             data[i]['label'] = label_onehot
             data[i]['id'] = hadm_id
+            data[i]['words'] = words ## for embeddings
+            data[i]['dx_index'] = row[2].split(' ') ## for embeddings
         self.data = data
 
     def __getitem__(self, index):
@@ -71,6 +74,12 @@ class FlatData(data.Dataset):
 
     def __len__(self):
         return len(self.data)
+
+    def get_dx_index(self, index):
+        return self.data[index]['dx_index']
+
+    def get_words(self, index):
+        return self.data[index]['words']
 
 
 def flat_batch_collate(batch):
@@ -82,15 +91,19 @@ def flat_batch_collate(batch):
         for j, word in enumerate(example[0]):
             x[i, j] = float(word)
     y = np.stack(y)
-    # print(batch[0][0][50:55])
-    # print(x[0][50:55])
-    # print(batch[0][1])
-    # print(y[0])
-    # print(batch[8][0][50:55])
-    # print(x[8][50:55])
-    # print(batch[8][1])
-    # print(y[8])
     return (x.long(), torch.from_numpy(y))
+
+def flat_batch_collate_with_lengths(batch):
+    lengths = [len(_[0]) for _ in batch]
+    max_note_len = max(lengths)
+    x = torch.zeros(len(batch), max_note_len)
+    y = []
+    for i, example in enumerate(batch):
+        y.append(np.asarray(example[1]))
+        for j, word in enumerate(example[0]):
+            x[i, j] = float(word)
+    y = np.stack(y)
+    return (x.long(), torch.from_numpy(y), torch.FloatTensor(lengths))
 
 
 def build_dictionary(train_data, PADDING):
@@ -126,7 +139,7 @@ def remove_stopwords(data):
     max_a = 0
     for d in data:
       note = d[1]
-      n = [[tok for tok in sent if tok in ENGLISH_STOP_WORDS] for sent in note]
+      n = [[tok for tok in sent if tok not in ENGLISH_STOP_WORDS] for sent in note]
       len_b = sum([1 for sent in note for tok in sent])
       len_a = sum([1 for sent in n for tok in sent])
       avg_length_before += len_b
@@ -139,5 +152,5 @@ def remove_stopwords(data):
     print("Avg length before: {}, avg length after removing stopwords: {}".format(
         avg_length_before / float(len(data)), avg_length_after / float(len(data))))
     print("Max length before: {}, max length after removing stopwords: {}".format(
-       max_b, max_a)) 
+       max_b, max_a))
     return data
