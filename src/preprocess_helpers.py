@@ -65,7 +65,7 @@ def extract_vocab(train_data, threshold):
         for sent in note:
             vocab.extend(sent)
     all_counts = list(Counter(vocab).most_common())
-    counts = [_[0] for _ in all_counts if _[1] >= 5]
+    counts = [_[0] for _ in all_counts if _[1] >= threshold]
     # counts = list(Counter(vocab).most_common())
     print("Total tokens: {}, Size of vocabulary: {}".format(len(all_counts),len(counts)))
     print("Top 100 words...")

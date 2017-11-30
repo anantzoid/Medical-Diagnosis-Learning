@@ -20,7 +20,7 @@ from attention_models import *
 
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
-parser.add_argument('--log_path', type=str, default='log/hamv1')
+parser.add_argument('--exp_name', type=str, default='run')
 parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL5_UNK_content_4_train_data.pkl')
 parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL5_UNK_content_4_valid_data.pkl')
 parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/hamv1.pth')
@@ -50,9 +50,13 @@ if use_cuda:
     #torch.backends.cudnn.enabled = False    
 
 # data reader 
-if not os.path.exists(args.log_path):
-    os.makedirs(args.log_path)
-tensorboard_logger.configure(args.log_path)
+log_path = os.path.join('log', args.exp_name)
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
+tensorboard_logger.configure(log_path)
+
+'''
+## MIMIC data code
 traindata = pickle.load(open(args.train_path, 'r'))
 valdata = pickle.load(open(args.val_path, 'r'))
 
@@ -62,6 +66,42 @@ vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_thr
 print("Train size:", len(traindata))
 print("Vocab size:", len(vocabulary))
 #print(vocabulary[:20])
+
+'''
+def get_yelp_train_data(yelp_file):
+    import json
+    from preprocess_helpers import extract_vocab, tokenize_by_sent_alt
+    clean_data = []
+    with open(yelp_file, 'rb') as f:
+        data = f.readlines()
+    data = list(map(lambda x: x.rstrip(), data))
+    for d in data:
+        d = json.loads(d)
+        clean_data.append([d['user_id'], d['text'], d['stars']])
+    split = int(len(clean_data)*0.9)
+    #todo set seed
+    random.shuffle(clean_data)
+    traindata = clean_data[:split]
+    testdata = clean_data[split:]
+
+    traindata = tokenize_by_sent_alt(traindata)
+    testdata = tokenize_by_sent_alt(testdata)
+    vocab = [PADDING, UNKNOWN] + extract_vocab(traindata, 5)
+    token2idx = {i:_ for _,i in enumerate(vocab)}
+    label_map = {i:_ for _,i in enumerate(list(set([_[2] for _ in traindata])))}
+
+    return (traindata, testdata, token2idx, label_map)
+
+yelp_file = '/misc/vlgscratch2/LecunGroup/anant/nlp/dataset/review.json'
+#yelp_file = '/Users/jedi/Downloads/dataset/review.json'
+traindata, testdata, token2idx, label_map = get_yelp_train_data(yelp_file)
+
+'''
+print(traindata[:10])
+print(list(token2idx.keys())[:20])
+print(label_map)
+print(list(token2idx.values())[:20])
+'''
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)

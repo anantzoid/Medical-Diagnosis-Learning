@@ -15,7 +15,7 @@ def get_labels(data):
     labels = []
     for row in data:
         labels.append(row[-1].split(' ')[0])
-    print Counter(labels)
+    print(Counter(labels))
     return list(set(labels))
 
 def build_vocab(data, PAD, UNKNOWN, vocab_threshold):
