@@ -1,9 +1,9 @@
 *.pyc
 .ipynb_checkpoints
 *.log
+*/labels
 
 ## nothing in data/ ending in csv or txt
 data/*.csv
 data/*.csv.gz
 data/*.txt
-
