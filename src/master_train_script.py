@@ -47,62 +47,30 @@ torch.manual_seed(1)
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     torch.cuda.set_device(args.gpu_id)
-    #torch.backends.cudnn.enabled = False    
+    #torch.backends.cudnn.enabled = False
 
-# data reader 
+# data reader
 log_path = os.path.join('log', args.exp_name)
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 tensorboard_logger.configure(log_path)
 
-'''
+
 ## MIMIC data code
 traindata = pickle.load(open(args.train_path, 'r'))
 valdata = pickle.load(open(args.val_path, 'r'))
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
-exit()
+# exit()
 vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
 print("Train size:", len(traindata))
 print("Vocab size:", len(vocabulary))
-#print(vocabulary[:20])
-
-'''
-def get_yelp_train_data(yelp_file):
-    import json
-    from preprocess_helpers import extract_vocab, tokenize_by_sent_alt
-    clean_data = []
-    with open(yelp_file, 'rb') as f:
-        data = f.readlines()
-    data = data[:1000]
-    data = list(map(lambda x: x.rstrip(), data))
-    for d in data:
-        d = json.loads(d)
-        clean_data.append([d['user_id'], d['text'], d['stars']])
-    split = int(len(clean_data)*0.9)
-    #todo set seed
-    random.shuffle(clean_data)
-    traindata = clean_data[:split]
-    testdata = clean_data[split:]
-
-    traindata = tokenize_by_sent_alt(traindata)
-    testdata = tokenize_by_sent_alt(testdata)
-    vocab = [PADDING, UNKNOWN] + extract_vocab(traindata, 5)
-    token2idx = {i:_ for _,i in enumerate(vocab)}
-    label_map = {i:_ for _,i in enumerate(list(set([_[2] for _ in traindata])))}
-
-    return (traindata, testdata, token2idx, label_map, vocab)
-
-yelp_file = '/misc/vlgscratch2/LecunGroup/anant/nlp/dataset/review.json'
-#yelp_file = '/Users/jedi/Downloads/dataset/review.json'
-traindata, valdata, token2idx, label_map, vocabulary = get_yelp_train_data(yelp_file)
-
-'''
+print(vocabulary[:20])
 print(traindata[:10])
 print(list(token2idx.keys())[:20])
 print(label_map)
 print(list(token2idx.values())[:20])
-'''
+
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
@@ -138,15 +106,15 @@ for n_e in range(args.num_epochs):
         sent_hidden = model.sent_rnn.init_hidden()
         if use_cuda:
             word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
-        
+
         #model.zero_grad()
         opti.zero_grad()
         batch_x = Variable(batch[0])
-        batch_y = Variable(batch[1])        
-                        
+        batch_y = Variable(batch[1])
+
         if use_cuda:
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
-    
+
         pred_prob = model(batch_x, word_hidden, sent_hidden)
         loss = crit(pred_prob, batch_y)
         loss.backward()
@@ -168,7 +136,7 @@ for n_e in range(args.num_epochs):
                     word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
 
-                batch_x, val_batch_y = Variable(batch[0], volatile=True), Variable(batch[1]) 
+                batch_x, val_batch_y = Variable(batch[0], volatile=True), Variable(batch[1])
                 if use_cuda:
                     batch_x, val_batch_y = batch_x.cuda(), val_batch_y.cuda()
 
@@ -197,7 +165,7 @@ for n_e in range(args.num_epochs):
             tensorboard_logger.log_value('param norm2', param2, step)
             tensorboard_logger.log_value('grad norm2', grad2, step)
             train_loss_mean = []
-                    
+
         step += 1
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
@@ -205,5 +173,5 @@ for n_e in range(args.num_epochs):
         opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
     print(predicted[:20])
     print(val_batch_y[:20])
-    
+
     torch.save(model.state_dict(), args.model_file)
