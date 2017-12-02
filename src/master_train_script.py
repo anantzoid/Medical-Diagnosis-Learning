@@ -55,54 +55,22 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 tensorboard_logger.configure(log_path)
 
-'''
+
 ## MIMIC data code
 traindata = pickle.load(open(args.train_path, 'r'))
 valdata = pickle.load(open(args.val_path, 'r'))
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
-exit()
+# exit()
 vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
 print("Train size:", len(traindata))
 print("Vocab size:", len(vocabulary))
-#print(vocabulary[:20])
-
-'''
-def get_yelp_train_data(yelp_file):
-    import json
-    from preprocess_helpers import extract_vocab, tokenize_by_sent_alt
-    clean_data = []
-    with open(yelp_file, 'rb') as f:
-        data = f.readlines()
-    data = data[:1000]
-    data = list(map(lambda x: x.rstrip(), data))
-    for d in data:
-        d = json.loads(d)
-        clean_data.append([d['user_id'], d['text'], d['stars']])
-    split = int(len(clean_data)*0.9)
-    #todo set seed
-    random.shuffle(clean_data)
-    traindata = clean_data[:split]
-    testdata = clean_data[split:]
-
-    traindata = tokenize_by_sent_alt(traindata)
-    testdata = tokenize_by_sent_alt(testdata)
-    vocab = [PADDING, UNKNOWN] + extract_vocab(traindata, 5)
-    token2idx = {i:_ for _,i in enumerate(vocab)}
-    label_map = {i:_ for _,i in enumerate(list(set([_[2] for _ in traindata])))}
-
-    return (traindata, testdata, token2idx, label_map, vocab)
-
-yelp_file = '/misc/vlgscratch2/LecunGroup/anant/nlp/dataset/review.json'
-#yelp_file = '/Users/jedi/Downloads/dataset/review.json'
-traindata, valdata, token2idx, label_map, vocabulary = get_yelp_train_data(yelp_file)
-
-'''
+print(vocabulary[:20])
 print(traindata[:10])
 print(list(token2idx.keys())[:20])
 print(label_map)
 print(list(token2idx.values())[:20])
-'''
+
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
