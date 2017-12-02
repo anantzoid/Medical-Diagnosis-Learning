@@ -49,12 +49,13 @@ class FastText(nn.Module):
     """
     FastText model
     """
-    def __init__(self, vocab_size, emb_dim, out_dim):
+    def __init__(self, vocab_size, emb_dim, out_dim, cuda):
         """
         @param vocab_size: size of the vocabulary.
         @param emb_dim: size of the word embedding
         """
         super(FastText, self).__init__()
+        self.cuda = cuda
         self.embed = nn.Embedding(vocab_size + 2, emb_dim, padding_idx=0)
         self.linear1 = nn.Linear(emb_dim, out_dim)
         self.init_weights()
@@ -69,6 +70,8 @@ class FastText(nn.Module):
         out = self.embed(data)
         out = torch.sum(out, dim=1)
         length = length.type(torch.FloatTensor).unsqueeze(1)
+        if self.cuda:
+          length = length.cuda()
         out = torch.div(out, length)
         out = self.linear1(out)
         return out

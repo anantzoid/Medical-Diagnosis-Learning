@@ -10,13 +10,15 @@ from preprocess_helpers import *
 from data_util import get_data_stats
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
-parser.add_argument('--data', type=str, default='/Users/lauragraesser/Documents/NYU_Courses/medical_data', help="folder where data is located")
+parser.add_argument('--data', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes', help="folder where data is located")
 parser.add_argument('--notesfile', type=str, default='NOTEEVENTS.csv', help="notes data file")
 parser.add_argument('--procdatafile', type=str, default='base', help="processed data file name")
-parser.add_argument('--numlabels', type=int, default=10,
+parser.add_argument('--numlabels', type=int, default=50,
                     help='Number of distinct ICD9 codes to use')
 parser.add_argument('--ICDcodelength', type=int, default=5,
                     help='How many of the digits of the ICD code to use as a label')
+parser.add_argument('--firstK', type=int, default=1,
+                    help='How many of ICD codes to keep, ordered from most to least significant')
 parser.add_argument('--notestypes', type=str, default='discharge summary',
                     help='Types of notes to include')
 parser.add_argument('--notescontent', type=int, default=3,
@@ -54,7 +56,7 @@ map_unk_using_edit_dist = args.mapunk # Whether to map OOV words to words in voc
 
 # Load ICD data and process ICD codes
 total_start = time.time()
-diagnosis = get_diagnosis(os.path.join(base_path, 'DIAGNOSES_ICD.csv'), ICD_code_length)
+diagnosis = get_diagnosis(os.path.join(base_path, 'DIAGNOSES_ICD.csv'), ICD_code_length, args.firstK)
 print("Total number of HADM_ID: {}\n".format(len(diagnosis)))
 print("Example: raw data")
 print(diagnosis['178393'])
@@ -82,7 +84,6 @@ try:
 except:
     print("No key after processing: 178393")
 print()
-
 # Load notes data and process
 data = build_notes(os.path.join(base_path, notes_file), processed_diagnoses, note_types)
 print("Data stats after loading data")
@@ -139,6 +140,9 @@ with open(os.path.join(base_path, args.procdatafile + '_valid_data.pkl'), 'wb') 
     pickle.dump(valid_data, f)
 with open(os.path.join(base_path, args.procdatafile + '_test_data.pkl'), 'wb') as f:
     pickle.dump(test_data, f)
-print("Written data to file")
+print("Written long data to file")
+with open(os.path.join(base_path, args.procdatafile + '_train_data_short.pkl'), 'wb') as f:
+    pickle.dump(train_data[:5000], f)
+print("Written short training data to file")
 total_time = time.time() - total_start
 print("Total time to process data {:.2f}".format(total_time))

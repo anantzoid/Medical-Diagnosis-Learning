@@ -21,9 +21,9 @@ from attention_models import *
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
-parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL5_UNK_content_4_train_data.pkl')
-parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/processed_data/50codesL5_UNK_content_4_valid_data.pkl')
-parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/anant/nlp/hamv1.pth')
+parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_4_new_train_data.pkl')
+parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_4_new_valid_data.pkl')
+parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/testv1.pth')
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--embed_dim', type=int, default=50)

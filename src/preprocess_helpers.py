@@ -158,17 +158,19 @@ function = {'replace numbers' : replace_numbers,
             'remove brackets' : remove_brackets,
             'add space'       : add_space_to_punc}
 
-def get_diagnosis(label_path, icd_length):
+def get_diagnosis(label_path, icd_length, firstK):
     with open(label_path, 'r') as csvf:
         csvreader = csv.reader(csvf, delimiter=',', quotechar='"')
         skip_header = next(csvreader)
         icd = {}
         for row in csvreader:
-            if icd.get(row[2]) is None:
-                icd[row[2]] = {'labels':{'icd': [row[-1][:icd_length]], 'seq_no': [row[-2]]}, 'pat_id': row[1]}
-            else:
-                icd[row[2]]['labels']['icd'].append(row[-1][:icd_length])
-                icd[row[2]]['labels']['seq_no'].append(row[-2])
+            # Select only ICD codes with a seq_no <= firstK
+            if row[-2] != '' and (int)(row[-2]) <= firstK:
+                if icd.get(row[2]) is None:
+                    icd[row[2]] = {'labels':{'icd': [row[-1][:icd_length]], 'seq_no': [row[-2]]}, 'pat_id': row[1]}
+                else:
+                    icd[row[2]]['labels']['icd'].append(row[-1][:icd_length])
+                    icd[row[2]]['labels']['seq_no'].append(row[-2])
     return icd
 
 def get_top_diagnoses(diagnoses, num_labels):
