@@ -2,6 +2,7 @@
 .ipynb_checkpoints
 *.log
 */labels
+*.DS_Store
 
 ## nothing in data/ ending in csv or txt
 data/*.csv
