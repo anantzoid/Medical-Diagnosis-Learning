@@ -41,16 +41,21 @@ class WordModel(nn.Module):
 
         self.word_embed = nn.Embedding(vocab_size, embed_dim)
         self.word_rnn = nn.GRU(embed_dim, hidden_dim,  bidirectional=True)
+        self.init_embedding()
 
     def forward(self, x, _hidden):
         true_x_size = x.size()
+        # print("True x size: {}".format(x.data.size()))
+        # print("Hidden size: {}")
         x = x.view(self.batch_size, -1)
-        #print("before embedding", x.size())
+        # print("before embedding", x.data.size())
         x = self.word_embed(x)
-        #print("after embedding", x.size())
-        x = torch.transpose(x, 1, 0)
+        # print("after embedding", x.data.size())
+        # Stack to (batch_size x sentence size) x num words per sentence x embed_dim
         x = x.contiguous().view(
-            true_x_size[2], self.batch_size * true_x_size[1], self.embed_dim)
+            true_x_size[0] * true_x_size[1], true_x_size[2], self.embed_dim)
+        x = torch.transpose(x, 1, 0)
+        # print("After reshape for GRU: {}".format(x.data.size()))
         return self.word_rnn(x, _hidden)
 
     def init_hidden(self, b_size, volatile=False):
@@ -58,6 +63,10 @@ class WordModel(nn.Module):
             2, b_size,  self.hidden_dim), volatile=volatile)
         #hidden2 = Variable(torch.zeros(1, self.batch_size, self.hidden_dim))
         return hidden1  # , hidden2)
+
+    def init_embedding(self):
+        init_range = 0.1
+        self.word_embed.weight.data.uniform_(-init_range, init_range)
 
 
 class Attend(nn.Module):
@@ -121,6 +130,72 @@ class Classifer(nn.Module):
         return self.lin(x)
 
 
+class CBOWSentModel(nn.Module):
+    def __init__(self, embed_dim, vocabulary_size, hidden_dim, batch_size, label_map):
+        super(WordSentModel, self).__init__()
+        self.batch_size = batch_size
+        self.hidden_dim = hidden_dim
+        self.word_rnn = CBOW(
+            embed_dim, vocabulary_size, hidden_dim, batch_size)
+        self.sent_rnn = SentModel(batch_size, 2 * hidden_dim)
+        self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
+        # self.word_rnn.apply(xavier_weight_init)
+        # self.sent_rnn.apply(xavier_weight_init)
+        # self.clf_rnn.apply(xavier_weight_init)
+
+    def forward(self, x, word_hidden, sent_hidden):
+        true_batch_size = x.size()
+        x, hidden = self.word_rnn(x, word_hidden)
+        # x = x[-1].squeeze()
+        x = x.contiguous().view(
+            true_batch_size[0], true_batch_size[1], -1)
+        x, sent_hidden = self.sent_rnn(x, sent_hidden)
+        x = x[-1].squeeze()
+        x = x.contiguous().view(true_batch_size[0], -1)
+        x = self.clf(x)
+        return x
+
+
+class WordSentModel(nn.Module):
+    def __init__(self, embed_dim, vocabulary_size, hidden_dim, batch_size, label_map):
+        super(WordSentModel, self).__init__()
+        self.batch_size = batch_size
+        self.hidden_dim = hidden_dim
+        self.word_rnn = WordModel(
+            embed_dim, vocabulary_size, hidden_dim, batch_size)
+        self.sent_rnn = SentModel(batch_size, 2 * hidden_dim)
+        self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
+        # self.clf.apply(xavier_weight_init)
+
+    def forward(self, x, word_hidden, sent_hidden):
+        # print("raw size:", x.size())
+        # print("Word hidden: ", word_hidden.size())
+        # print("Sent hidden: ", sent_hidden.size())
+        # batch_size x sentence size x num words per sentence
+        true_batch_size = x.size()
+        # print("======= word model =====")
+        x, hidden = self.word_rnn(x, word_hidden)
+        # print("word rnn op size:", x.size())
+        # print("word rnn hidden size:", word_hidden.size())
+        # Select last element from sequence
+        x = x[-1].squeeze()
+        # print("Sentence summary shape:", x.size())
+        # Output: (batch size * num sentences) x hidden state size
+        # Reshape to: batch size x num sentences x hidden state size
+        x = x.contiguous().view(
+            true_batch_size[0], true_batch_size[1], -1)
+        # print("bs x sent x hidden:", x.size())
+        # print("======= sentence model =====")
+        x, sent_hidden = self.sent_rnn(x, sent_hidden)
+        x = x[-1].squeeze()
+        x = x.contiguous().view(true_batch_size[0], -1)
+        # print("After sentence model", x.size())
+        x = self.clf(x)
+        # print("Output size: ", x.size())
+        return x
+
+
+
 class Ensemble(nn.Module):
     def __init__(self, embed_dim, vocabulary_size, hidden_dim, batch_size, label_map):
         super(Ensemble, self).__init__()
@@ -160,4 +235,5 @@ class Ensemble(nn.Module):
 
 def xavier_weight_init(m):
     classname = m.__class__.__name__
-    torch.nn.init.xavier_uniform(m.weight)
+    if classname != 'GRU':
+        torch.nn.init.xavier_uniform(m.weight)

@@ -21,9 +21,10 @@ from attention_models import *
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
-parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_4_new_train_data.pkl')
-parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_4_new_valid_data.pkl')
+parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/50codesL5_UNK_content_4_top1_train_data.pkl')
+parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/50codesL5_UNK_content_4_top1_valid_data.pkl')
 parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/testv1.pth')
+parser.add_argument('--attention', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--embed_dim', type=int, default=50)
@@ -32,7 +33,7 @@ parser.add_argument('--lr', type=float, default=1e-2)
 parser.add_argument('--lr_decay_rate', type=float, default=0.9)
 parser.add_argument('--lr_decay_epoch', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=10)
-parser.add_argument('--log_interval', type=int, default=100)
+parser.add_argument('--log_interval', type=int, default=25)
 parser.add_argument('--vocab_threshold', type=int, default=50)
 parser.add_argument('--gpu_id', type=int, default=1)
 args = parser.parse_args()
@@ -59,18 +60,21 @@ tensorboard_logger.configure(log_path)
 ## MIMIC data code
 traindata = pickle.load(open(args.train_path, 'r'))
 valdata = pickle.load(open(args.val_path, 'r'))
+print("Train size:", len(traindata))
+print("Valid size:", len(valdata))
+traindata = chf_data(traindata)
+valdata = chf_data(valdata)
+print("CHF Train size:", len(traindata))
+print("CHF Valid size:", len(valdata))
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
-# exit()
 vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
-print("Train size:", len(traindata))
 print("Vocab size:", len(vocabulary))
 print(vocabulary[:20])
 print(traindata[:10])
 print(list(token2idx.keys())[:20])
 print(label_map)
 print(list(token2idx.values())[:20])
-
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
@@ -82,16 +86,24 @@ val_loader = torch.utils.data.DataLoader(dataset = valset, batch_size=args.batch
                                                            num_workers=args.num_workers, collate_fn=sent_batch_collate)
 print("data loader done")
 
-model = Ensemble(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
-#model.apply(xavier_weight_init)
+if args.attention:
+    model = Ensemble(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
+else:
+    model = WordSentModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
+print(model)
+
+# model.apply(xavier_weight_init)
 crit = nn.CrossEntropyLoss()
+# crit = nn.BCEWithLogitsLoss()
 opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
+# opti = torch.optim.RMSprop(model.parameters(), lr=args.lr)
 
 if use_cuda:
     model.cuda()
     crit.cuda()
-    model.wordattention.context = model.wordattention.context.cuda()
-    model.sentattention.context = model.sentattention.context.cuda()
+    if args.attention:
+        model.wordattention.context = model.wordattention.context.cuda()
+        model.sentattention.context = model.sentattention.context.cuda()
 
 print("Starting training...")
 step = 0
@@ -101,7 +113,8 @@ for n_e in range(args.num_epochs):
     for batch in train_loader:
         if batch[0].size(0) != args.batch_size:
             continue
-
+        # print("Num padded sentences: {}, Num padded words per sentence: {}".format(
+            # batch[0].size(1), batch[0].size(2)))
         word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
         sent_hidden = model.sent_rnn.init_hidden()
         if use_cuda:
