@@ -67,6 +67,17 @@ valdata = chf_data(valdata)
 print("CHF Train size:", len(traindata))
 print("CHF Valid size:", len(valdata))
 
+# Build starspace embeddings
+from embedding_utils import *
+stsp_data = convert_unflat_data_to_starspace_format(traindata)
+write_starspace_format(stsp_data, "stsp_embeddings.txt")
+exit()
+
+# Printing examples
+for i in range(10):
+    print(traindata[i])
+exit()
+
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
 vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
 print("Vocab size:", len(vocabulary))
