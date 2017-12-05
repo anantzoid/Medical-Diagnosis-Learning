@@ -226,18 +226,10 @@ def extract_subset_of_note(text, inc_history=True, diagnosis_short=True):
             if 'final diagnosis' in text:
                 start_idx = text.index('final diagnosis')
                 end_idx = min(start_idx + 250, len(text))
-                if '\n\n' in text[start_idx:]:
-                    end_idx = text[start_idx:].index('\n\n')
-                elif '.\n' in text[start_idx:]:
-                    end_idx = text[start_idx:].index('.\n')
                 newtext += text[start_idx:end_idx]
             if 'discharge diagnosis' in text:
                 start_idx = text.index('discharge diagnosis')
                 end_idx = min(start_idx + 250, len(text))
-                if '\n\n' in text[start_idx:]:
-                    end_idx = text[start_idx:].index('\n\n')
-                elif '.\n' in text[start_idx:]:
-                    end_idx = text[start_idx:].index('.\n')
                 newtext += text[start_idx:end_idx]
         else:
             if 'final diagnosis' in text:

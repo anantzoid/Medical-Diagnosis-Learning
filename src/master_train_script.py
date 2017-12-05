@@ -5,24 +5,27 @@ import random
 from collections import Counter
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.utils.data as data
+from torch.autograd import Variable
 import numpy as np
 import math
 import tensorboard_logger
 import pickle
 import time
 import argparse
+import subprocess
 
 from attention_databuilder import *
 from attention_models import *
+from embedding_utils import *
+from evaluate import *
 
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
-parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/50codesL5_UNK_content_4_top1_train_data.pkl')
-parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/50codesL5_UNK_content_4_top1_valid_data.pkl')
+parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_train_data.pkl')
+parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_valid_data.pkl')
 parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/testv1.pth')
 parser.add_argument('--attention', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=16)
@@ -33,9 +36,11 @@ parser.add_argument('--lr', type=float, default=1e-2)
 parser.add_argument('--lr_decay_rate', type=float, default=0.9)
 parser.add_argument('--lr_decay_epoch', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=10)
-parser.add_argument('--log_interval', type=int, default=25)
-parser.add_argument('--vocab_threshold', type=int, default=50)
+parser.add_argument('--log_interval', type=int, default=100)
+parser.add_argument('--vocab_threshold', type=int, default=20)
 parser.add_argument('--gpu_id', type=int, default=1)
+parser.add_argument('--build_starspace', type=int, default=0)
+parser.add_argument('--use_starspace', type=int, default=1)
 args = parser.parse_args()
 print(args)
 
@@ -62,30 +67,50 @@ traindata = pickle.load(open(args.train_path, 'r'))
 valdata = pickle.load(open(args.val_path, 'r'))
 print("Train size:", len(traindata))
 print("Valid size:", len(valdata))
-traindata = chf_data(traindata)
-valdata = chf_data(valdata)
-print("CHF Train size:", len(traindata))
-print("CHF Valid size:", len(valdata))
+# traindata = chf_data(traindata)
+# valdata = chf_data(valdata)
+# print("CHF Train size:", len(traindata))
+# print("CHF Valid size:", len(valdata))
 
-# Build starspace embeddings
-from embedding_utils import *
-stsp_data = convert_unflat_data_to_starspace_format(traindata)
-write_starspace_format(stsp_data, "stsp_embeddings.txt")
-exit()
-
-# Printing examples
-for i in range(10):
-    print(traindata[i])
-exit()
+if args.build_starspace:
+    print("Building starspace embeddings. This will take a few minutes...")
+    stsp_data = convert_unflat_data_to_starspace_format(traindata)
+    write_starspace_format(stsp_data, "stsp_embeddings.txt")
+    subprocess.call(['./Starspace/run.sh'])
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
 vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
 print("Vocab size:", len(vocabulary))
 print(vocabulary[:20])
-print(traindata[:10])
+print("====================== Data examples =======================")
+for i in range(10):
+    print(traindata[i])
+    print("=============================================================")
+print("=============================================================")
 print(list(token2idx.keys())[:20])
 print(label_map)
 print(list(token2idx.values())[:20])
+print("Label mix training data")
+count_labels(traindata)
+print("Label mix valid data")
+count_labels(valdata)
+
+if args.use_starspace:
+    # Load starspace embeddings into a dict
+    stsp_embed = load_starspace_embeds("Starspace/stsp_model.tsv",
+                                        args.embed_dim)
+    print(type(stsp_embed))
+    print("Embeddings loaded")
+    for i, k in enumerate(stsp_embed):
+        print(k, stsp_embed[k])
+        if i == 3:
+            break
+    # Create starspace embedding matrix
+    emb_mat = create_starspace_embedding_matrix(stsp_embed,
+                                                token2idx,
+                                                len(vocabulary),
+                                                args.embed_dim)
+    print("Embedding matrix created")
 
 trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
 valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
@@ -102,6 +127,11 @@ if args.attention:
 else:
     model = WordSentModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
 print(model)
+
+if args.use_starspace:
+    # Init embeddings
+    model.word_rnn.word_embed.weight.data.copy_(emb_mat)
+    print("Model embeddings initialized with starspace")
 
 # model.apply(xavier_weight_init)
 crit = nn.CrossEntropyLoss()
@@ -120,7 +150,7 @@ print("Starting training...")
 step = 0
 train_loss_mean = []
 for n_e in range(args.num_epochs):
-
+    train_correct = 0
     for batch in train_loader:
         if batch[0].size(0) != args.batch_size:
             continue
@@ -131,7 +161,7 @@ for n_e in range(args.num_epochs):
         if use_cuda:
             word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
-        #model.zero_grad()
+        model.train()
         opti.zero_grad()
         batch_x = Variable(batch[0])
         batch_y = Variable(batch[1])
@@ -144,7 +174,7 @@ for n_e in range(args.num_epochs):
         loss.backward()
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
-
+        # print("Loss: {}".format(loss.data[0]))
         train_loss_mean.append(loss.data[0])
 
         if step % args.log_interval ==0:
@@ -153,7 +183,7 @@ for n_e in range(args.num_epochs):
             for val_batch in val_loader:
                 if batch[0].size(0) != args.batch_size:
                     continue
-
+                model.eval()
                 word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1), True)
                 sent_hidden = model.sent_rnn.init_hidden(True)
                 if use_cuda:
@@ -195,7 +225,12 @@ for n_e in range(args.num_epochs):
         args.lr *= args.lr_decay_rate
         print("LR changed to", args.lr)
         opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
-    print(predicted[:20])
-    print(val_batch_y[:20])
+
+    # print(predicted[:20])
+    # print(val_batch_y[:20])
+    print("Evaluating on training set")
+    eval_model(model, train_loader, args.batch_size, crit, use_cuda)
+    print("Evaluating on validation set")
+    eval_model(model, val_loader, args.batch_size, crit, use_cuda)
 
     torch.save(model.state_dict(), args.model_file)
