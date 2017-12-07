@@ -28,6 +28,7 @@ parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGr
 parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_valid_data.pkl')
 parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/testv1.pth')
 parser.add_argument('--attention', type=int, default=0)
+parser.add_argument('--cbow', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--embed_dim', type=int, default=50)
@@ -127,8 +128,12 @@ if args.attention:
     #model = Ensemble(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
     model = HANModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
 else:
-    print("Using Hierachical model")
-    model = WordSentModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
+    if args.cbow:
+        print("Using CBOW model")
+        model = CBOWSentModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
+    else:
+        print("Using Hierachical model")
+        model = WordSentModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
 print(model)
 
 if args.use_starspace:
