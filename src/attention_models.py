@@ -19,11 +19,9 @@ class CBOW(nn.Module):
         self.embed = nn.Embedding(vocab_size + 2, emb_dim, padding_idx=0)
         self.init_weights()
 
-    def forward(self, data):
+    def forward(self, data, length):
         out = self.embed(data)
         out = torch.sum(out, dim=1)
-        # TODO: Calc length of each sentence
-        length = length.type(torch.FloatTensor).unsqueeze(1)
         out = torch.div(out, length)
         return out
 
@@ -150,27 +148,40 @@ class Classifer(nn.Module):
 
 class CBOWSentModel(nn.Module):
     def __init__(self, embed_dim, vocabulary_size, hidden_dim, batch_size, label_map):
-        super(WordSentModel, self).__init__()
+        super(CBOWSentModel, self).__init__()
         self.batch_size = batch_size
         self.hidden_dim = hidden_dim
-        self.word_rnn = CBOW(
+        self.word_model = CBOW(
             embed_dim, vocabulary_size, hidden_dim, batch_size)
         self.sent_rnn = SentModel(batch_size, 2 * hidden_dim)
         self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
-        # self.word_rnn.apply(xavier_weight_init)
-        # self.sent_rnn.apply(xavier_weight_init)
-        # self.clf_rnn.apply(xavier_weight_init)
+        # self.clf.apply(xavier_weight_init)
 
-    def forward(self, x, word_hidden, sent_hidden):
+    def forward(self, x, word_hidden, sent_hidden, length_x):
+        # print("raw size:", x.size())
+        # print("Word hidden: ", word_hidden.size())
+        # print("Sent hidden: ", sent_hidden.size())
+        # batch_size x sentence size x num words per sentence
         true_batch_size = x.size()
-        x, hidden = self.word_rnn(x, word_hidden)
-        # x = x[-1].squeeze()
+        # print("======= word model =====")
+        x, hidden = self.word_model(x, word_hidden, length_x)
+        # print("word rnn op size:", x.size())
+        # print("word rnn hidden size:", word_hidden.size())
+        # Select last element from sequence
+        x = x[-1].squeeze()
+        # print("Sentence summary shape:", x.size())
+        # Output: (batch size * num sentences) x hidden state size
+        # Reshape to: batch size x num sentences x hidden state size
         x = x.contiguous().view(
             true_batch_size[0], true_batch_size[1], -1)
+        # print("bs x sent x hidden:", x.size())
+        # print("======= sentence model =====")
         x, sent_hidden = self.sent_rnn(x, sent_hidden)
         x = x[-1].squeeze()
         x = x.contiguous().view(true_batch_size[0], -1)
+        # print("After sentence model", x.size())
         x = self.clf(x)
+        # print("Output size: ", x.size())
         return x
 
 
@@ -185,7 +196,7 @@ class WordSentModel(nn.Module):
         self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
         # self.clf.apply(xavier_weight_init)
 
-    def forward(self, x, word_hidden, sent_hidden):
+    def forward(self, x, word_hidden, sent_hidden, length_x):
         # print("raw size:", x.size())
         # print("Word hidden: ", word_hidden.size())
         # print("Sent hidden: ", sent_hidden.size())
@@ -226,7 +237,7 @@ class HANModel(nn.Module):
         self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
         # self.clf.apply(xavier_weight_init)
 
-    def forward(self, x, word_hidden, sent_hidden):
+    def forward(self, x, word_hidden, sent_hidden, length_x):
         #print("raw size:", x.size())
         #print("Word hidden: ", word_hidden.size())
         #print("Sent hidden: ", sent_hidden.size())
@@ -269,7 +280,7 @@ class Ensemble(nn.Module):
         self.sentattention = Attend(batch_size, 4 * hidden_dim)
         self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
 
-    def forward(self, x, word_hidden, sent_hidden):
+    def forward(self, x, word_hidden, sent_hidden, length_x):
         #print("raw size:", batch_x.size())
         true_batch_size = x.size()
         x, hidden = self.word_rnn(x, word_hidden)

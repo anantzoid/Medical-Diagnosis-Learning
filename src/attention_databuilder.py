@@ -80,6 +80,7 @@ def sent_batch_collate(batch):
     # Cap notes at 150
     # max_note_len = max([len(_[0]) for _ in batch])
     max_note_len = min(max([len(_[0]) for _ in batch]), 150)
+    lengths = [len(_[0]) for _ in batch]
     # Cap sentences at 200
     # max_sentence_len = max([len(i) for _ in batch for i in _[0]])
     max_sentence_len = min(max([len(i) for _ in batch for i in _[0]]), 150)
@@ -91,7 +92,7 @@ def sent_batch_collate(batch):
                     if w < max_sentence_len:
                         x[n, s, w] = float(word)
 
-    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).long())
+    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).long(), torch.from_numpy(np.array(lengths))
 
 
 

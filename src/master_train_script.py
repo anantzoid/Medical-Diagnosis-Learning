@@ -168,11 +168,14 @@ for n_e in range(args.num_epochs):
         opti.zero_grad()
         batch_x = Variable(batch[0])
         batch_y = Variable(batch[1])
+        length_x = batch[2].type(torch.FloatTensor).unsqueeze(1)
+        length_x = Variable(length_x)
 
         if use_cuda:
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
+            length_x = length_x.cuda()
 
-        pred_prob = model(batch_x, word_hidden, sent_hidden)
+        pred_prob = model(batch_x, word_hidden, sent_hidden, length_x)
         loss = crit(pred_prob, batch_y)
         loss.backward()
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
@@ -194,10 +197,12 @@ for n_e in range(args.num_epochs):
 
 
                 batch_x, val_batch_y = Variable(batch[0], volatile=True), Variable(batch[1])
+                length_x = batch[2].type(torch.FloatTensor).unsqueeze(1)
+                length_x = Variable(length_x)
                 if use_cuda:
                     batch_x, val_batch_y = batch_x.cuda(), val_batch_y.cuda()
 
-                outputs = model(batch_x, word_hidden, sent_hidden)
+                outputs = model(batch_x, word_hidden, sent_hidden, length_x)
                 val_loss = crit(outputs, val_batch_y)
                 val_loss_mean += val_loss.data[0]
 

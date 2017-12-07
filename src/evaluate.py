@@ -18,10 +18,13 @@ def eval_model(model, loader, batch_size, crit, use_cuda):
             word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
         batch_x, batch_y = Variable(batch[0], volatile=True), Variable(batch[1])
+        length_x = batch[2].type(torch.FloatTensor).unsqueeze(1)
+        length_x = Variable(length_x)
         if use_cuda:
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
+            length_x = length_x.cuda()
 
-        out = model(batch_x, word_hidden, sent_hidden)
+        out = model(batch_x, word_hidden, sent_hidden, length_x)
         loss = crit(out, batch_y)
         avg_loss.append(loss.data[0])
         pred_prob = F.softmax(out)
