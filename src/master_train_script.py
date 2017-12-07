@@ -33,6 +33,7 @@ parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--embed_dim', type=int, default=50)
 parser.add_argument('--hidden_dim', type=int, default=100)
+parser.add_argument('--focalloss', type=int, default=0)
 parser.add_argument('--lr', type=float, default=1e-2)
 parser.add_argument('--lr_decay_rate', type=float, default=0.9)
 parser.add_argument('--lr_decay_epoch', type=int, default=10)
@@ -142,7 +143,10 @@ if args.use_starspace:
     print("Model embeddings initialized with starspace")
 
 # model.apply(xavier_weight_init)
-crit = nn.CrossEntropyLoss()
+if args.focalloss:
+    crit = FocalLoss(num_classes=len(label_map), use_cuda)
+else:
+    crit = nn.CrossEntropyLoss()
 # crit = nn.BCEWithLogitsLoss()
 opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
 # opti = torch.optim.RMSprop(model.parameters(), lr=args.lr)
