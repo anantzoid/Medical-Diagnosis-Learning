@@ -82,25 +82,37 @@ class Attend(nn.Module):
 
         self.sm = nn.Softmax()
 
-    def forward(self, x, sentence_size):
+    def forward(self, x):
+        print("x: ", x.size())
         attends = []
         for i in range(x.size(0)):
-            # print(x[i,:,:].size())
+            print(x[i,:,:].size())
             attends.append(F.tanh(self.lin(x[i, :, :])).unsqueeze(0))
-        #print ("single attend:", attends[0].size())
+        print ("single attend:", attends[0].size())
         attends = torch.cat(attends)
-        #print("cat attention:", attends.size())
-        attends = torch.mul(attends, self.context)
-        #print("attention_combine:", attn_combine.size())
-        attends = self.sm(attends.contiguous().view(-1, self.hidden_dim))
-        #print("sm size:", alpha.size())
-        # print(x.size())
-        attended = torch.mul(x, attends).contiguous().view(
-            self.batch_size, sentence_size, -1, self.hidden_dim)
-        #print("x.alpha prod:", attended.size())
-        attended = torch.sum(attended, 2)
-        #print("attended sum:", attended.size())
+        print("cat attention:", attends.size())
+        similarity = torch.dot(attends, self.context).view(self.batch_size, -1)
+        print("similarity:", similarity.size())
+        probs = self.sm(similarity)
+        print("probs:", probs.size())
+        attended = torch.mul(x, attends)
+        print("attended:", attended.size())
+        attended = torch.sum(attended, 1)
+        print("final attended:", attended.size())
+
+        # #print("attention_combine:", attn_combine.size())
+        # # attends = torch.mul(attends, self.context)
+        # #print("attention_combine:", attn_combine.size())
+        # attends = self.sm(attends.contiguous().view(-1, self.hidden_dim))
+        # #print("sm size:", alpha.size())
+        # # print(x.size())
+        # attended = torch.mul(x, attends).contiguous().view(
+        #     self.batch_size, sentence_size, -1, self.hidden_dim)
+        # #print("x.alpha prod:", attended.size())
+        # attended = torch.sum(attended, 2)
+        # #print("attended sum:", attended.size())
         return attended
+
 
 
 class SentModel(nn.Module):
@@ -192,6 +204,49 @@ class WordSentModel(nn.Module):
         # print("After sentence model", x.size())
         x = self.clf(x)
         # print("Output size: ", x.size())
+        return x
+
+
+class HANModel(nn.Module):
+    def __init__(self, embed_dim, vocabulary_size, hidden_dim, batch_size, label_map):
+        super(HANModel, self).__init__()
+        self.batch_size = batch_size
+        self.hidden_dim = hidden_dim
+        self.word_rnn = WordModel(
+            embed_dim, vocabulary_size, hidden_dim, batch_size)
+        self.word_attn = Attend(batch_size, 2 * hidden_dim)
+        self.sent_rnn = SentModel(batch_size, 2 * hidden_dim)
+        self.sent_attn = Attend(batch_size, 4 * hidden_dim)
+        self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
+        # self.clf.apply(xavier_weight_init)
+
+    def forward(self, x, word_hidden, sent_hidden):
+        print("raw size:", x.size())
+        print("Word hidden: ", word_hidden.size())
+        print("Sent hidden: ", sent_hidden.size())
+        # batch_size x sentence size x num words per sentence
+        true_batch_size = x.size()
+        print("======= word model =====")
+        x, hidden = self.word_rnn(x, word_hidden)
+        print("word rnn op size:", x.size())
+        print("word rnn hidden size:", word_hidden.size())
+        # Attend on words
+        x = self.word_attn(x)
+        print("Sentence summary shape:", x.size())
+        # Output: (batch size * num sentences) x hidden state size
+        # Reshape to: batch size x num sentences x hidden state size
+        x = x.contiguous().view(
+            true_batch_size[0], true_batch_size[1], -1)
+        print("bs x sent x hidden:", x.size())
+        print("======= sentence model =====")
+        x, sent_hidden = self.sent_rnn(x, sent_hidden)
+        # Attend on sentences
+        x = self.sent_attn(x)
+        x = x.contiguous().view(true_batch_size[0], -1)
+        print("After sentence model", x.size())
+        x = self.clf(x)
+        print("Output size: ", x.size())
+        exit()
         return x
 
 
