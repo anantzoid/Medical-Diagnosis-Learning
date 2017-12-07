@@ -144,8 +144,10 @@ if args.use_starspace:
 
 # model.apply(xavier_weight_init)
 if args.focalloss:
+    print("Using focal loss")
     crit = FocalLoss(num_classes=len(label_map), use_cuda)
 else:
+    print("Using cross entropy loss")
     crit = nn.CrossEntropyLoss()
 # crit = nn.BCEWithLogitsLoss()
 opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
