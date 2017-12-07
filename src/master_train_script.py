@@ -20,7 +20,7 @@ from attention_databuilder import *
 from attention_models import *
 from embedding_utils import *
 from evaluate import *
-
+from loss import *
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
@@ -145,7 +145,7 @@ if args.use_starspace:
 # model.apply(xavier_weight_init)
 if args.focalloss:
     print("Using focal loss")
-    crit = FocalLoss(num_classes=len(label_map), use_cuda)
+    crit = FocalLoss(len(label_map), use_cuda)
 else:
     print("Using cross entropy loss")
     crit = nn.CrossEntropyLoss()
@@ -155,7 +155,8 @@ opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
 
 if use_cuda:
     model.cuda()
-    crit.cuda()
+    if args.focalloss == 0:
+      crit.cuda()
     if args.attention:
         model.wordattention.context = model.wordattention.context.cuda()
         model.sentattention.context = model.sentattention.context.cuda()

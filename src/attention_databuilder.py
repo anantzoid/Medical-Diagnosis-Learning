@@ -92,7 +92,7 @@ def sent_batch_collate(batch):
                     if w < max_sentence_len:
                         x[n, s, w] = float(word)
 
-    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).long(), torch.from_numpy(np.array(lengths))
+    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).long(), torch.from_numpy(np.array(lengths)))
 
 
 

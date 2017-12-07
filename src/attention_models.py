@@ -16,19 +16,29 @@ class CBOW(nn.Module):
     def __init__(self, embed_dim, vocab_size, hidden_dim, batch_size):
         super(CBOW, self).__init__()
         self.batch_size = batch_size
-        self.embed = nn.Embedding(vocab_size + 2, emb_dim, padding_idx=0)
+        self.word_embed = nn.Embedding(vocab_size, embed_dim)
+        self.hidden_dim = hidden_dim
         self.init_weights()
 
     def forward(self, data, length):
-        out = self.embed(data)
+        print(data.size())
+        out = self.word_embed(data)
+        print(out.size())
         out = torch.sum(out, dim=1)
         out = torch.div(out, length)
         return out
 
     def init_weights(self):
         init_range = 0.1
-        self.embed.weight.data.uniform_(-init_range, init_range)
+        self.word_embed.weight.data.uniform_(-init_range, init_range)
 
+    
+    def init_hidden(self, b_size, volatile=False):
+        # Not needed for this model, does the same as the word model 
+        # so training code does not have to be changed
+        hidden1 = Variable(torch.zeros(
+            2, b_size,  self.hidden_dim), volatile=volatile)
+        return hidden1
 
 class WordModel(nn.Module):
     def __init__(self, embed_dim, vocab_size, hidden_dim, batch_size):
@@ -151,7 +161,7 @@ class CBOWSentModel(nn.Module):
         super(CBOWSentModel, self).__init__()
         self.batch_size = batch_size
         self.hidden_dim = hidden_dim
-        self.word_model = CBOW(
+        self.word_rnn = CBOW(
             embed_dim, vocabulary_size, hidden_dim, batch_size)
         self.sent_rnn = SentModel(batch_size, 2 * hidden_dim)
         self.clf = Classifer(4 * hidden_dim, len(label_map.keys()))
@@ -164,11 +174,8 @@ class CBOWSentModel(nn.Module):
         # batch_size x sentence size x num words per sentence
         true_batch_size = x.size()
         # print("======= word model =====")
-        x, hidden = self.word_model(x, word_hidden, length_x)
+        x = self.word_rnn(x, length_x)
         # print("word rnn op size:", x.size())
-        # print("word rnn hidden size:", word_hidden.size())
-        # Select last element from sequence
-        x = x[-1].squeeze()
         # print("Sentence summary shape:", x.size())
         # Output: (batch size * num sentences) x hidden state size
         # Reshape to: batch size x num sentences x hidden state size
