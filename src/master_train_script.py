@@ -123,8 +123,11 @@ val_loader = torch.utils.data.DataLoader(dataset = valset, batch_size=args.batch
 print("data loader done")
 
 if args.attention:
-    model = Ensemble(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
+    print("Using hierachical attention model")
+    #model = Ensemble(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
+    model = HANModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
 else:
+    print("Using Hierachical model")
     model = WordSentModel(args.embed_dim, len(vocabulary), args.hidden_dim, args.batch_size, label_map)
 print(model)
 
