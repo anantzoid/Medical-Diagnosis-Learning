@@ -43,6 +43,10 @@ parser.add_argument('--vocab_threshold', type=int, default=20)
 parser.add_argument('--gpu_id', type=int, default=1)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
+parser.add_argument('--sentenceembeddings', type=int, default=1,
+                    help='Whether to initialize embeddings by supplying Starspace with sentences or entire documents.')
+parser.add_argument('--supervisedembeddings', type=int, default=0,
+                    help='Whether to learn Starspace embeddings supervised or not.')
 args = parser.parse_args()
 print(args)
 

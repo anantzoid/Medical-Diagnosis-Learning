@@ -70,6 +70,52 @@ def convert_unflat_data_to_starspace_format(data):
     print("Finished converting UNlabeled data to StarSpace format.")
     return output
 
+def convert_unflat_data_to_ss_sent_vs_doc_un_supervised(data, sentenceembeddings=1, supervisedembeddings=0):
+    output = []
+    if sentenceembeddings == 1:
+        for i, rec in enumerate(data):
+            note = rec[1]
+            code = rec[2]
+            if supervisedembeddings == 0:
+                ## UNsupervised
+                for sent in note:
+                    output.append(" ".join(sent))
+            else:
+                ## Supervised
+                if not isinstance(rec[2], list):
+                    code = [code] ## coerce to list for topk = 1 code.
+                for sent in note:
+                    output.append(" ".join(["__label__" + c for c in code] + sent))
+                    ## should look like:
+                    # '__label__414 admission date discharge date date of birth sex m service cardiothoracic surgery admitting diagnosis coronary artery disease requiring revascularization'
+            if i == 0:
+                print(note)
+                print(output)
+    elif sentenceembeddings == 0:
+        for i, rec in enumerate(data):
+            note = rec[1]
+            code = rec[2]
+            doc = []
+            
+            for sent in note:
+                doc.append(" ".join(sent))
+            
+            if supervisedembeddings == 0:
+                ## UNsupervised
+                output.append(" ".join(doc))
+            else:
+                ## Supervised
+                if not isinstance(rec[2], list):
+                    code = [code] ## coerce to list for topk = 1 code.
+                output.append(" ".join(["__label__" + c for c in code] + doc))
+                    ## should look like:
+                # '__label__414 admission date discharge date date of birth sex m service cardiothoracic surgery admitting diagnosis coronary artery disease requiring revascularization ....'
+            if i == 0:
+                print(note)
+                print(output)
+    
+    return output
+
 def write_starspace_format(records, filepath):
     with open(filepath, 'w') as file_handler:
             for record in records:
