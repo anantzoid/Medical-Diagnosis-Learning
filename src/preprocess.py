@@ -49,6 +49,7 @@ Notes content options
     2: short discharge diagnosis and final diagnosis
     3: all discharge diagnosis and final diagnosis
     4: all discharge diagnosis and final diagnosis and present history of illness
+    5: present history of illness
 '''
 preprocessing = args.preprocessing.split(',')
 vocab_count_threshold = args.vocabcountthreshold # Only include words with count > threshold in vocabulary
