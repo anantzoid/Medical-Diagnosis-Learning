@@ -149,7 +149,7 @@ def vocabify_text(data, vocab, mapunk):
 
 
 def remove_punc(text):
-    text = re.sub('([.,!?:;])', '', text)
+    text = re.sub('([,!?:;])', '', text)
     return text
 
 
