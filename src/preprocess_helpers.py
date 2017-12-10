@@ -3,11 +3,9 @@ import csv
 from collections import Counter
 import editdistance
 import random
-#import spacy
-#from spacy.lang.en import English
-#nlp = spacy.load("en")
 random.seed(101)
 UNKS = 0
+
 
 def split_data(data, splits):
     train = []
@@ -24,6 +22,7 @@ def split_data(data, splits):
             print("ERROR, HADM ID not in splits")
     return (train, valid, test)
 
+
 def split_hadm_ids(diagnosis):
     training = []
     valid = []
@@ -38,6 +37,7 @@ def split_hadm_ids(diagnosis):
             test.append(key)
     return (training, valid, test)
 
+
 def tokenize_by_sent(data):
     for i, d in enumerate(data):
         n = nlp(d[1])
@@ -48,18 +48,21 @@ def tokenize_by_sent(data):
             print("Tokenized {} notes".format(i))
     return data
 
+
 def tokenize_by_sent_alt(data):
     for i, d in enumerate(data):
         try:
             n = d[1]
             n = [sent.strip().lower() for sent in n.split('.')]
-            n = [[str(tok) for tok in sent.split(' ') if tok is not ' '] for sent in n]
+            n = [[str(tok) for tok in sent.split(' ') if tok is not ' ']
+                 for sent in n]
             d[1] = n
             if i % 5000 == 0:
                 print("Tokenized {} notes".format(i))
         except:
             data.remove(d)
     return data
+
 
 def extract_vocab(train_data, threshold):
     vocab = []
@@ -70,11 +73,13 @@ def extract_vocab(train_data, threshold):
     all_counts = list(Counter(vocab).most_common())
     counts = [_[0] for _ in all_counts if _[1] >= threshold]
     # counts = list(Counter(vocab).most_common())
-    print("Total tokens: {}, Size of vocabulary: {}".format(len(all_counts),len(counts)))
+    print("Total tokens: {}, Size of vocabulary: {}".format(
+        len(all_counts), len(counts)))
     print("Top 100 words...")
     print(counts[:100])
     print()
     return counts
+
 
 def find_closest_word(word, vocab):
     global UNKS
@@ -82,7 +87,7 @@ def find_closest_word(word, vocab):
     dist = []
     for v in vocab:
         d = editdistance.eval(word, v)
-        dist.append((v,d))
+        dist.append((v, d))
     dist = sorted(dist, key=lambda x: x[1])
     dist_min = [_[0] for _ in dist if _[1] == dist[0][1]]
     # print("{}".format(dist[:25]))
@@ -100,17 +105,19 @@ def find_closest_word(word, vocab):
         # print(dist_min[0])
         return dist_min[0]
 
+
 def find_closest_word_original(word, vocab):
     global UNKS
     UNKS += 1
     dist = []
     for v in vocab:
         d = editdistance.eval(word, v)
-        dist.append((v,d))
+        dist.append((v, d))
     dist = sorted(dist, key=lambda x: x[1])
     # print("{} : {}".format(word, dist[:25]))
     # print(dist[0][0])
     return dist[0][0]
+
 
 def vocabify_text(data, vocab, mapunk):
     global UNKS
@@ -124,39 +131,55 @@ def vocabify_text(data, vocab, mapunk):
     for i, d in enumerate(data):
         note = d[1]
         if mapunk == 2:
-            n = [[tok if tok in vocab else find_closest_word(tok, vocab) for tok in sent] for sent in note]
+            n = [[tok if tok in vocab else find_closest_word(
+                tok, vocab) for tok in sent] for sent in note]
         elif mapunk == 1:
-            n = [[tok if tok in vocab else find_closest_word_original(tok, vocab) for tok in sent] for sent in note]
+            n = [[tok if tok in vocab else find_closest_word_original(
+                tok, vocab) for tok in sent] for sent in note]
         else:
-            n = [[tok if tok in vocab else 'UNK' for tok in sent] for sent in note]
+            n = [[tok if tok in vocab else 'UNK' for tok in sent]
+                 for sent in note]
             UNKS += sum([1 for sent in n for tok in sent if tok is 'UNK'])
         d[1] = n
         if i % 1000 == 0:
             print("Vocabified {} notes".format(i))
-    print("Total unknown words: {}, unk per note: {}".format(UNKS, UNKS / (len(data) * 1.)))
+    print("Total unknown words: {}, unk per note: {}".format(
+        UNKS, UNKS / (len(data) * 1.)))
     return data
+
+
+def remove_punc(text):
+    text = re.sub('([.,!?:;])', '', text)
+    return text
+
 
 def add_space_to_punc(text):
     text = re.sub('([.,!?:;])', r' \1 ', text)
     text = re.sub('\s{2,}', ' ', text)
     return text
 
+
 def remove_brackets(text):
     text = re.sub('\[\*\*.*\*\*\]', ' ', text).replace('  ', ' ')
     return text
+
 
 def replace_numbers(text):
     text = re.sub("[0-9]", "d", text)
     return text
 
+
 def replace_break(text):
     text = re.sub('\\n', ' ', text).replace('  ', ' ')
     return text
 
-function = {'replace numbers' : replace_numbers,
-            'replace break'   : replace_break,
-            'remove brackets' : remove_brackets,
-            'add space'       : add_space_to_punc}
+
+function = {'replace numbers': replace_numbers,
+            'replace break': replace_break,
+            'remove brackets': remove_brackets,
+            'remove punc': remove_punc,
+            'add space': add_space_to_punc}
+
 
 def get_diagnosis(label_path, icd_length, firstK):
     with open(label_path, 'r') as csvf:
@@ -167,19 +190,23 @@ def get_diagnosis(label_path, icd_length, firstK):
             # Select only ICD codes with a seq_no <= firstK
             if row[-2] != '' and (int)(row[-2]) <= firstK:
                 if icd.get(row[2]) is None:
-                    icd[row[2]] = {'labels':{'icd': [row[-1][:icd_length]], 'seq_no': [row[-2]]}, 'pat_id': row[1]}
+                    icd[row[2]] = {'labels': {
+                        'icd': [row[-1][:icd_length]], 'seq_no': [row[-2]]}, 'pat_id': row[1]}
                 else:
                     icd[row[2]]['labels']['icd'].append(row[-1][:icd_length])
                     icd[row[2]]['labels']['seq_no'].append(row[-2])
     return icd
+
 
 def get_top_diagnoses(diagnoses, num_labels):
     diagnoses_list = []
     for key in diagnoses:
         icds = diagnoses[key]['labels']['icd']
         diagnoses_list.extend(icds)
-    top_diagnoses = [_[0] for _ in list(Counter(diagnoses_list).most_common(num_labels))]
+    top_diagnoses = [_[0]
+                     for _ in list(Counter(diagnoses_list).most_common(num_labels))]
     return top_diagnoses
+
 
 def remove_diagnoses_not_intopK(diagnoses, top_diagnoses):
     for key in diagnoses:
@@ -194,12 +221,14 @@ def remove_diagnoses_not_intopK(diagnoses, top_diagnoses):
         diagnoses[key]['labels']['seq_no'] = new_seq_no
     return diagnoses
 
+
 def remove_blank_examples(diagnoses):
     new_diagnoses = {}
     for key in diagnoses:
         if len(diagnoses[key]['labels']['icd']) != 0:
             new_diagnoses[key] = diagnoses[key]
     return new_diagnoses
+
 
 def select_note_types(data, note_types):
     for d in data:
@@ -211,67 +240,87 @@ def select_note_types(data, note_types):
             d['notes'] = new_notes
     return data
 
-def extract_subset_of_note(text, inc_history=True, diagnosis_short=True):
+
+def extract_subset_of_note(text, inc_history=True, diagnosis_short=True, diagnosis=True):
     text = text.lower()
     newtext = ''
     if inc_history:
         if 'history of present illness' in text and 'past medical history' in text:
-            newtext+= text[text.index('history of present illness'):text.index('past medical history')]
+            newtext += text[text.index('history of present illness')
+                                       :text.index('past medical history')]
         elif 'history of present illness' in text:
             start_idx = text.index('history of present illness')
-            end_idx = min(text.index('history of present illness') + 1500, len(text))
+            end_idx = min(text.index(
+                'history of present illness') + 1500, len(text))
             newtext += text[start_idx:end_idx]
     if 'final diagnosis' in text or 'discharge diagnosis' in text:
-        if diagnosis_short:
-            if 'final diagnosis' in text:
-                start_idx = text.index('final diagnosis')
-                end_idx = min(start_idx + 250, len(text))
-                newtext += text[start_idx:end_idx]
-            if 'discharge diagnosis' in text:
-                start_idx = text.index('discharge diagnosis')
-                end_idx = min(start_idx + 250, len(text))
-                newtext += text[start_idx:end_idx]
-        else:
-            if 'final diagnosis' in text:
-                newtext += text[text.index('final diagnosis'):]
-            if 'discharge diagnosis' in text:
-                newtext += text[text.index('discharge diagnosis'):]
+        if diagnosis:
+            if diagnosis_short:
+                if 'final diagnosis' in text:
+                    start_idx = text.index('final diagnosis')
+                    end_idx = min(start_idx + 250, len(text))
+                    newtext += text[start_idx:end_idx]
+                if 'discharge diagnosis' in text:
+                    start_idx = text.index('discharge diagnosis')
+                    end_idx = min(start_idx + 250, len(text))
+                    newtext += text[start_idx:end_idx]
+            else:
+                if 'final diagnosis' in text:
+                    newtext += text[text.index('final diagnosis'):]
+                if 'discharge diagnosis' in text:
+                    newtext += text[text.index('discharge diagnosis'):]
     return newtext
+
 
 def process_text(data, note_content, preprocessing):
     flag = True
     for key in data:
         if 'notes' in data[key]:
-                for i, note in enumerate(data[key]['notes']):
-                    if i == 0 and flag:
-                        print("EXAMPLE NOTE PROCESSING...")
-                        print("Original note")
-                        print(note)
-                        print()
-                    if note_content == 1:
-                        n = note['note'].lower()
-                    elif note_content == 2:
-                        n = extract_subset_of_note(note['note'], inc_history=False, diagnosis_short=True)
-                    elif note_content == 3:
-                        n = extract_subset_of_note(note['note'], inc_history=False, diagnosis_short=False)
-                    elif note_content == 4:
-                        n = extract_subset_of_note(note['note'], inc_history=True, diagnosis_short=False)
-                    else:
-                        print("Error, unrecognised preprocessing step, doing nothing")
-                        n = note['note']
-                    if i == 0 and flag:
-                        print("Note after text selection")
-                        print(n)
-                        print()
-                    for p in preprocessing:
-                        n = function[p](n)
-                    if i == 0 and flag:
-                        print("Note after text processing")
-                        print(n)
-                        print()
-                    data[key]['notes'][i]['note'] = n
-                    flag = False
+            for i, note in enumerate(data[key]['notes']):
+                if i == 0 and flag:
+                    print("EXAMPLE NOTE PROCESSING...")
+                    print("Original note")
+                    print(note)
+                    print()
+                if note_content == 1:
+                    n = note['note'].lower()
+                elif note_content == 2:
+                    n = extract_subset_of_note(note['note'],
+                                               inc_history=False,
+                                               diagnosis_short=True,
+                                               diagnosis=True)
+                elif note_content == 3:
+                    n = extract_subset_of_note(note['note'],
+                                               inc_history=False,
+                                               diagnosis_short=False,
+                                               diagnosis=True)
+                elif note_content == 4:
+                    n = extract_subset_of_note(note['note'],
+                                               inc_history=True,
+                                               diagnosis_short=False,
+                                               diagnosis=True)
+                elif note_content == 5:
+                    n = extract_subset_of_note(note['note'],
+                                               inc_history=True,
+                                               diagnosis_short=False,
+                                               diagnosis=False)
+                else:
+                    print("Error, unrecognised preprocessing step, doing nothing")
+                    n = note['note']
+                if i == 0 and flag:
+                    print("Note after text selection")
+                    print(n)
+                    print()
+                for p in preprocessing:
+                    n = function[p](n)
+                if i == 0 and flag:
+                    print("Note after text processing")
+                    print(n)
+                    print()
+                data[key]['notes'][i]['note'] = n
+                flag = False
     return data
+
 
 def build_notes(notes_path, data, note_types):
     with open(notes_path, 'r') as csvf:
@@ -288,10 +337,10 @@ def build_notes(notes_path, data, note_types):
                 num_included += 1
                 if row[6].lower() in note_types:
                     note_dict = {"note_type": row[6],
-                                "description": row[7],
-                                "note": row[-1],
-                                "date": row[3]
-                                }
+                                 "description": row[7],
+                                 "note": row[-1],
+                                 "date": row[3]
+                                 }
                     if data[row[2]].get('notes') is None:
                         data[row[2]]['notes'] = [note_dict]
                     else:
@@ -300,6 +349,7 @@ def build_notes(notes_path, data, note_types):
                 print("Processed {} rows".format(num))
         print("Number of HADM ID with notes added: {}".format(num_included))
     return data
+
 
 def convert_format(data):
     new_data = []
@@ -311,7 +361,8 @@ def convert_format(data):
                     if len(datapoint) == 0:
                         datapoint.append(key)
                         datapoint.append(note['note'])
-                        icd_str = str(" ".join([icd for icd in data[key]['labels']['icd']]))
+                        icd_str = str(
+                            " ".join([icd for icd in data[key]['labels']['icd']]))
                         datapoint.append(icd_str)
                     else:
                         # Just use first note for now
@@ -320,6 +371,7 @@ def convert_format(data):
         if len(datapoint) != 0:
             new_data.append(datapoint)
     return new_data
+
 
 def write_to_file(filename, data):
     f = open(filename, 'w')
