@@ -1,10 +1,46 @@
 from build_datasets_utils import *
+import numpy as np
+import sys
+import torch
+
+def load_starspace_embeds(filepath, embed_dim):
+    lines = [line.rstrip('\n').split('\t') for line in open(filepath, 'r')]
+    print(len(lines))
+    print(len(lines[0]))
+    embed_dict = {}
+    for line in lines:
+        word = line[0]
+        embedding = np.array([float(dim) for dim in line[1:]])
+        # print(word)
+        # print(embedding)
+        # print(embedding.shape)
+        # sys.exit()
+        if embed_dim != embedding.shape[0]:
+            print("Error, wrong dimension embedding")
+        embed_dict[word] = embedding
+    return embed_dict
+
+
+def create_starspace_embedding_matrix(stsp_embed, token2idx, vocab_size, embed_dim):
+    embedding_matrix = torch.FloatTensor(vocab_size, embed_dim)
+    print("Embedding matrix size {}".format(embedding_matrix.size()))
+    init_range = 0.1
+    embedding_matrix.uniform_(-init_range, init_range)
+    init_embed = 0
+    for tok in token2idx:
+        if tok in stsp_embed:
+            embedding_matrix[token2idx[tok], :].copy_(torch.from_numpy(stsp_embed[tok]))
+            init_embed += 1
+    print("{} embeddings of a total of {} initialized with starspace embeddings".format(
+        init_embed, vocab_size - 2))
+    return embedding_matrix
+
 
 def convert_flatdata_to_starspace_format(data, flag_labeled = True, label_prefix = "__label__"):
     ## expecting data after converted by build_datasets_utils.FlatData
     ## dict_keys(['text_index_sequence', 'label', 'id', 'text'])
     ## where 'label' is actually an index.
-    
+
     output = []
     if flag_labeled == True:
         for i in range(len(data)):
@@ -21,11 +57,68 @@ def convert_flatdata_to_starspace_format(data, flag_labeled = True, label_prefix
             output.append(" ".join(data.get_words(i)))
         print("Finished converting UNlabeled data to StarSpace format.")
         return output
+
+def convert_unflat_data_to_starspace_format(data):
+    output = []
+    for i, rec in enumerate(data):
+        note = rec[1]
+        for sent in note:
+            output.append(" ".join([word for word in sent]))
+        if i == 0:
+            print(note)
+            print(output)
+    print("Finished converting UNlabeled data to StarSpace format.")
+    return output
+
+def convert_unflat_data_to_ss_sent_vs_doc_un_supervised(data, sentenceembeddings=1, supervisedembeddings=0):
+    output = []
+    if sentenceembeddings == 1:
+        for i, rec in enumerate(data):
+            note = rec[1]
+            code = rec[2]
+            if supervisedembeddings == 0:
+                ## UNsupervised
+                for sent in note:
+                    output.append(" ".join(sent))
+            else:
+                ## Supervised
+                if not isinstance(rec[2], list):
+                    code = [code] ## coerce to list for topk = 1 code.
+                for sent in note:
+                    output.append(" ".join(["__label__" + c for c in code] + sent))
+                    ## should look like:
+                    # '__label__414 admission date discharge date date of birth sex m service cardiothoracic surgery admitting diagnosis coronary artery disease requiring revascularization'
+            if i == 0:
+                print(note)
+                print(output)
+    elif sentenceembeddings == 0:
+        for i, rec in enumerate(data):
+            note = rec[1]
+            code = rec[2]
+            doc = []
+            
+            for sent in note:
+                doc.append(" ".join(sent))
+            
+            if supervisedembeddings == 0:
+                ## UNsupervised
+                output.append(" ".join(doc))
+            else:
+                ## Supervised
+                if not isinstance(rec[2], list):
+                    code = [code] ## coerce to list for topk = 1 code.
+                output.append(" ".join(["__label__" + c for c in code] + doc))
+                    ## should look like:
+                # '__label__414 admission date discharge date date of birth sex m service cardiothoracic surgery admitting diagnosis coronary artery disease requiring revascularization ....'
+            if i == 0:
+                print(note)
+                print(output)
     
+    return output
+
 def write_starspace_format(records, filepath):
     with open(filepath, 'w') as file_handler:
-        for record in records:
-            file_handler.write("{}\n".format(record))
+            for record in records:
+                if record != '':
+                    file_handler.write("{}\n".format(record))
     print("Finished writing StarSpace data to file.")
-    
-    

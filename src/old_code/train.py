@@ -63,7 +63,7 @@ valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset,
                                            shuffle=False,
                                            num_workers=num_workers,
                                            collate_fn=collate_fn)
-
+'''
 ## Create embeddings from training set
 # First, check the path exists
 if not os.path.isfile(args.starspace):
@@ -105,12 +105,12 @@ if "Saving model in tsv format" not in last_output:
     ## won't save a file if it doesn't finish.
     print('Starspace did not complete. PANIC! \nReverting to default initialization.')
     args.init_embed = 0 ## change the parameter to not use Starspace embeddings later.
-
+'''
 
 # Init models, opt and criterion
 if args.model == 'FastText':
     print("Using FastText model")
-    model = FastText(len(vocab), args.embeddim, len(label_map))
+    model = FastText(len(vocab), args.embeddim, len(label_map), args.cuda)
 else:
     print("Using LSTM model")
     model = LSTMModel(len(vocab), args.embeddim, args.hiddendim, label_map, args.batchsize, args.cuda)
@@ -165,7 +165,7 @@ def evaluate(model, loader, crit, cuda, bs, num_labels, model_type):
         last_pred = predicted
         y = y.data.int()
         last_y = y
-        total += data.size(0)
+        total += batch[0].size(0)
         correct += (predicted == y).sum()
         predicted = predicted.cpu().numpy()
         y = y.cpu().numpy()
@@ -176,6 +176,7 @@ def evaluate(model, loader, crit, cuda, bs, num_labels, model_type):
           false_neg[k] += np.sum((predicted[:,k][np.where(y[:,k] == 0)] != y[:,k][np.where(y[:,k] == 0)]))
         if j % 50 == 0:
             print("Processed {} batches".format(j+1))
+            break
     micro_precision = np.sum(true_pos) / (np.sum(true_pos) + np.sum(false_pos))
     micro_recall = np.sum(true_pos) / (np.sum(true_pos) + np.sum(false_neg))
     micro_F = (2 * micro_precision * micro_recall) / (micro_precision + micro_recall)
@@ -214,12 +215,15 @@ for i in range(args.epochs):
         loss.backward()
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
-        if j % 1 == 0:
+        if j % 10 == 0:
             print("Epoch: {}, Batch: {}/{}, loss: {} average seq length: {}, data size: {}".format(
                     i, j, data_size, loss.data[0], avg_length / float(j + 1), data_size * args.batchsize))
+        if j % 10 == 0:
+            break
     print("Evaluating model on training data")
     evaluate(model, train_loader, crit, args.cuda, args.batchsize, num_labels, args.model)
     print("Evaluating model on validation data")
     evaluate(model, valid_loader, crit, args.cuda, args.batchsize, num_labels, args.model)
     if i % 2 == 0:
       torch.save(model.state_dict(), os.path.join(args.modelfolder, args.experiment + '_' + str(i)))
+    break

@@ -1,9 +1,13 @@
 *.pyc
 .ipynb_checkpoints
 *.log
+*/labels
+*.DS_Store
+*.sh.e*
+*.sh.o*
 
 ## nothing in data/ ending in csv or txt
 data/*.csv
 data/*.csv.gz
 data/*.txt
-
+data/*.pkl
