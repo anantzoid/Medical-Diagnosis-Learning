@@ -83,7 +83,7 @@ def sent_batch_collate(batch):
     lengths = [len(_[0]) for _ in batch]
     # Cap sentences at 200
     # max_sentence_len = max([len(i) for _ in batch for i in _[0]])
-    max_sentence_len = min(max([len(i) for _ in batch for i in _[0]]), 150)
+    max_sentence_len = min(max([len(i) for _ in batch for i in _[0]]), 50)
     x = torch.zeros(len(batch), max_note_len, max_sentence_len)
     for n,note in enumerate(batch):
         for s,sentence in enumerate(note[0]):
