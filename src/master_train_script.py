@@ -99,7 +99,7 @@ count_labels(valdata)
 
 if args.use_starspace:
     # Load starspace embeddings into a dict
-    stsp_embed = load_starspace_embeds("Starspace/stsp_model.tsv",
+    stsp_embed = load_starspace_embeds("../Starspace/stsp_model.tsv",
                                         args.embed_dim)
     print(type(stsp_embed))
     print("Embeddings loaded")
