@@ -53,12 +53,25 @@ class WordModel(nn.Module):
 
     def forward(self, x, _hidden):
         true_x_size = x.size()
-        # print("True x size: {}".format(x.data.size()))
-        # print("Hidden size: {}")
+        #print("True x size: {}".format(x.data.size()))
+        #print("Hidden size: {}")
         x = x.view(self.batch_size, -1)
-        # print("before embedding", x.data.size())
+        #print("before embedding", x.data.size())
+        # Chunk embedding calc
+        #start = 0
+        #end = min(2000, x.data.size(1))
+        #embeds = []
+        #while start < x.data.size(1):
+        #  #print("start: {}, end: {}".format(start,end))
+        #  e = self.word_embed(x[:,start:end])
+        #  embeds.append(e)
+        #  start = end
+        #  end = min(end + 2000, x.data.size(1))
+        #print("Length chunks: {}".format(len(embeds)))
+        #print("Size first chunk: {}".format(embeds[0].size()))
+        #x = torch.cat(embeds, dim=1)
         x = self.word_embed(x)
-        # print("after embedding", x.data.size())
+        #print("after embedding", x.data.size())
         # Stack to (batch_size x sentence size) x num words per sentence x embed_dim
         x = x.contiguous().view(
             true_x_size[0] * true_x_size[1], true_x_size[2], self.embed_dim)
