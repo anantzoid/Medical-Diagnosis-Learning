@@ -21,6 +21,7 @@ from attention_models import *
 from embedding_utils import *
 from evaluate import *
 from loss import *
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
@@ -40,7 +41,7 @@ parser.add_argument('--lr_decay_epoch', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=10)
 parser.add_argument('--log_interval', type=int, default=100)
 parser.add_argument('--vocab_threshold', type=int, default=20)
-parser.add_argument('--gpu_id', type=int, default=1)
+parser.add_argument('--gpu_id', type=int, default=0)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
 parser.add_argument('--embed_path', type=str, default="Starspace/stsp_model.tsv",
@@ -199,8 +200,8 @@ for n_e in range(args.num_epochs):
 
         if step % args.log_interval ==0:
             val_loss_mean = 0
-            correct = 0
-            for val_batch in val_loader:
+            correct, f1, precision, recall = 0, 0., 0., 0.
+            for batch_idx, val_batch in enumerate(val_loader):
                 if batch[0].size(0) != args.batch_size:
                     continue
                 model.eval()
@@ -222,12 +223,19 @@ for n_e in range(args.num_epochs):
 
                 _, predicted = torch.max(outputs.data, 1)
                 correct += predicted.eq(val_batch_y.data).cpu().sum()
+                f1 += f1_score( val_batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro')
+                precision += precision_score(val_batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro')
+                recall += recall_score(predicted.cpu().numpy(), val_batch_y.data.cpu().numpy(), average='micro')
 
             train_loss_mean = np.mean(train_loss_mean)
             print(correct, len(val_loader.dataset))
             correct /= float(len(val_loader.dataset))
             val_loss_mean /= float(len(val_loader.dataset))
             print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.3f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
+
+            aggregate = lambda x: x/float(batch_idx+1)
+            f1, precision, recall = aggregate(f1), aggregate(precision), aggregate(recall)
+            print("Validation F1: %.3f Precision %.3f Recall %.3f"%(f1, precision, recall ))
 
             param1, grad1 = calc_grad_norm(model.parameters(), 1)
             param2, grad2 = calc_grad_norm(model.parameters(), 2)
@@ -240,6 +248,10 @@ for n_e in range(args.num_epochs):
             tensorboard_logger.log_value('grad norm1', grad1, step)
             tensorboard_logger.log_value('param norm2', param2, step)
             tensorboard_logger.log_value('grad norm2', grad2, step)
+
+            tensorboard_logger.log_value('val f1', f1, step)
+            tensorboard_logger.log_value('val precision', precision, step)
+            tensorboard_logger.log_value('val recall', recall, step)
             train_loss_mean = []
 
         step += 1
