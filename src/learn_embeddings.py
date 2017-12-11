@@ -30,9 +30,9 @@ def create_embeddings(data, sentenceembeddings, supervisedembeddings, trainpath,
         print("Could not find the Starspace executible.")
 
     if supervisedembeddings == 0:
-        ss_paras = [stsp_path, 'train', '-trainFile', data_name, '-model', embed_name, '-trainMode', '0', '-dim', str(embed_dim), '-normalizeText', '0']
-    else:
         ss_paras = [stsp_path, 'train', '-trainFile', data_name, '-model', embed_name, '-trainMode', '5', '-dim', str(embed_dim), '-normalizeText', '0']
+    else:
+        ss_paras = [stsp_path, 'train', '-trainFile', data_name, '-model', embed_name, '-trainMode', '0', '-dim', str(embed_dim), '-normalizeText', '0']
     print("Starspace call: ")
     print(" ".join(ss_paras))
     ss_output = subprocess.run(ss_paras, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

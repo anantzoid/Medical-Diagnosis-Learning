@@ -43,10 +43,8 @@ parser.add_argument('--vocab_threshold', type=int, default=20)
 parser.add_argument('--gpu_id', type=int, default=1)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
-parser.add_argument('--sentenceembeddings', type=int, default=1,
-                    help='Whether to initialize embeddings by supplying Starspace with sentences or entire documents.')
-parser.add_argument('--supervisedembeddings', type=int, default=0,
-                    help='Whether to learn Starspace embeddings supervised or not.')
+parser.add_argument('--embed_path', type=str, default="Starspace/stsp_model.tsv",
+                    help='Where are the initialized embeddings?')
 args = parser.parse_args()
 print(args)
 
@@ -69,8 +67,8 @@ tensorboard_logger.configure(log_path)
 
 
 ## MIMIC data code
-traindata = pickle.load(open(args.train_path, 'r'))
-valdata = pickle.load(open(args.val_path, 'r'))
+traindata = pickle.load(open(args.train_path, 'rb'))
+valdata = pickle.load(open(args.val_path, 'rb'))
 print("Train size:", len(traindata))
 print("Valid size:", len(valdata))
 # traindata = chf_data(traindata)
@@ -103,8 +101,8 @@ count_labels(valdata)
 
 if args.use_starspace:
     # Load starspace embeddings into a dict
-    stsp_embed = load_starspace_embeds("../Starspace/stsp_model.tsv",
-                                        args.embed_dim)
+    #stsp_embed = load_starspace_embeds("Starspace/stsp_model.tsv", args.embed_dim)
+    stsp_embed = load_starspace_embeds(args.embed_path, args.embed_dim)
     print(type(stsp_embed))
     print("Embeddings loaded")
     for i, k in enumerate(stsp_embed):
