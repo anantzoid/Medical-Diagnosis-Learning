@@ -33,7 +33,7 @@ def eval_model(model, loader, batch_size, crit, use_cuda):
         # print(predicted, batch_y)
         correct += (predicted == batch_y.data).sum()
         if i == 1:
-            print(pred_prob, predicted, batch_y)
+            print(pred_prob, predicted.data.cpu().numpy(), batch_y.data.cpu().numpy())
         if i % 100 == 0:
             print("Processed {} batches".format(i))
     print("{}/{} correct, {:.3f}%, avg loss: {}".format(

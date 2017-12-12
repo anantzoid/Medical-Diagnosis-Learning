@@ -226,14 +226,15 @@ for n_e in range(args.num_epochs):
                 f1 += f1_score( val_batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro')
                 precision += precision_score(val_batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro')
                 recall += recall_score(predicted.cpu().numpy(), val_batch_y.data.cpu().numpy(), average='micro')
-
+            
+            aggregate = lambda x: x/float(batch_idx+1)
             train_loss_mean = np.mean(train_loss_mean)
             print(correct, len(val_loader.dataset))
             correct /= float(len(val_loader.dataset))
-            val_loss_mean /= float(len(val_loader.dataset))
-            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.3f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
+            val_loss_mean = aggregate(val_loss_mean)
 
-            aggregate = lambda x: x/float(batch_idx+1)
+            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.3f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
+            
             f1, precision, recall = aggregate(f1), aggregate(precision), aggregate(recall)
             print("Validation F1: %.3f Precision %.3f Recall %.3f"%(f1, precision, recall ))
 
