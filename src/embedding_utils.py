@@ -1,4 +1,4 @@
-from old_code.build_datasets_utils import *
+from build_datasets_utils import *
 import numpy as np
 import sys
 import torch
