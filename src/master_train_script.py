@@ -44,6 +44,7 @@ parser.add_argument('--vocab_threshold', type=int, default=20)
 parser.add_argument('--gpu_id', type=int, default=0)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
+parser.add_argument('--multilabel', type=int, default=0)
 parser.add_argument('--embed_path', type=str, default="Starspace/stsp_model.tsv",
                     help='Where are the initialized embeddings?')
 args = parser.parse_args()
@@ -156,9 +157,12 @@ if args.focalloss:
     print("Using focal loss")
     crit = FocalLoss(len(label_map), use_cuda)
 else:
-    print("Using cross entropy loss")
-    crit = nn.CrossEntropyLoss()
-# crit = nn.BCEWithLogitsLoss()
+    if args.multilabel:
+	print("Mutilabel, using BCE loss")
+	crit = nn.BCEWithLogitsLoss()
+    else:
+        print("Using cross entropy loss")
+        crit = nn.CrossEntropyLoss()
 opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
 # opti = torch.optim.RMSprop(model.parameters(), lr=args.lr)
 
