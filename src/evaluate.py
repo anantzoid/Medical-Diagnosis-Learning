@@ -2,11 +2,13 @@ import torch
 from torch.autograd import Variable
 import numpy as np
 import torch.nn.functional as F
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 def eval_model(model, loader, batch_size, crit, use_cuda):
     model.eval()
     correct = 0
     total = 0
+    f1, precision, recall = [], [], []
     avg_loss = []
     for i, batch in enumerate(loader):
         if batch[0].size(0) != batch_size:
@@ -32,9 +34,18 @@ def eval_model(model, loader, batch_size, crit, use_cuda):
         total += batch[1].size(0)
         # print(predicted, batch_y)
         correct += (predicted == batch_y.data).sum()
+        f1.append(f1_score( val_batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro'))
+        precision.append(precision_score(val_batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro'))
+        recall.append(recall_score(predicted.cpu().numpy(), val_batch_y.data.cpu().numpy(), average='micro'))
+
         if i == 1:
             print(pred_prob, predicted.data.cpu().numpy(), batch_y.data.cpu().numpy())
         if i % 100 == 0:
             print("Processed {} batches".format(i))
-    print("{}/{} correct, {:.3f}%, avg loss: {}".format(
-        correct, total, (correct / float(total)), np.mean(avg_loss)))
+    avg_loss = np.mean(avg_loss)
+    f1 = np.mean(f1)
+    precision = np.mean(precision)
+    recall = np.mean(recall)
+    print("{}/{} correct, {:.3f}%, avg loss: {}, avg f1: {}, avg precision: {}, avg recall: {}".format(
+        correct, total, (correct / float(total)), avg_loss, f1, precision, recall))
+    return(avg_loss, (correct / float(total)),  f1, precision, recall)

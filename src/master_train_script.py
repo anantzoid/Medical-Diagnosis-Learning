@@ -64,6 +64,8 @@ if use_cuda:
 log_path = os.path.join('log', args.exp_name)
 if not os.path.exists(log_path):
     os.makedirs(log_path)
+else:
+    exit("Log path already exists. Enter a new exp_name")
 tensorboard_logger.configure(log_path)
 
 
@@ -166,7 +168,7 @@ if use_cuda:
 
 print("Starting training...")
 step = 0
-train_loss_mean = []
+#train_loss_mean = []
 for n_e in range(args.num_epochs):
     train_correct = 0
     for batch in train_loader:
@@ -196,8 +198,8 @@ for n_e in range(args.num_epochs):
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
         # print("Loss: {}".format(loss.data[0]))
-        train_loss_mean.append(loss.data[0])
-
+        #train_loss_mean.append(loss.data[0])
+        '''
         if step % args.log_interval ==0:
             val_loss_mean = 0
             correct, f1, precision, recall = 0, 0., 0., 0.
@@ -254,7 +256,7 @@ for n_e in range(args.num_epochs):
             tensorboard_logger.log_value('val precision', precision, step)
             tensorboard_logger.log_value('val recall', recall, step)
             train_loss_mean = []
-
+        '''
         step += 1
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
@@ -264,8 +266,16 @@ for n_e in range(args.num_epochs):
     # print(predicted[:20])
     # print(val_batch_y[:20])
     print("Evaluating on training set")
-    eval_model(model, train_loader, args.batch_size, crit, use_cuda)
+    train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
     print("Evaluating on validation set")
-    eval_model(model, val_loader, args.batch_size, crit, use_cuda)
+    val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
 
+    tensorboard_logger.log_value('train loss', train_loss, n_e)
+    tensorboard_logger.log_value('train acc', train_acc, n_e)
+    tensorboard_logger.log_value('val loss', val_loss, n_e)
+    tensorboard_logger.log_value('val acc', val_acc, n_e)
+    tensorboard_logger.log_value('val f1', val_f1, n_e)
+    tensorboard_logger.log_value('val precision', val_precision, n_e)
+    tensorboard_logger.log_value('val recall', val_recall, n_e)
+ 
     torch.save(model.state_dict(), args.model_file)
