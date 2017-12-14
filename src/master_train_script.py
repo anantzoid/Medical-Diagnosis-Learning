@@ -68,6 +68,7 @@ if not os.path.exists(log_path):
 else:
     exit("Log path already exists. Enter a new exp_name")
 
+args.model_dir = os.path.join(args.model_dir, args.exp_name)
 if not os.path.exists(args.model_dir):
     os.makedirs(args.model_dir)
 
