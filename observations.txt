@@ -1,0 +1,53 @@
+---Anant
+    find avg no. of sentences
+    skip alternate sentences - discourse lol
+    window document
+
+    ==> highly imbalance
+        check what they do in both papers
+    ==> vocab set is huge
+        check what they use in both papers
+    ==> windowing of sentences
+
+
+    Tal et. al.
+    - uses same split on mimic2
+    - task is extreme multi-class classification (weston et. al.)
+    - they seem to have trained some w2v with genism model (check this later in paper)
+    - potential future work: exploiting discourse structure in docs.
+    - Reference for type of attention being used:
+        - self attentive attention https://arxiv.org/pdf/1703.03130.pdf
+        - Heirarchical attention https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf
+
+
+    !preprocessing paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3932472/!
+        1. Run code as it is, ie, on mimic2
+        2. Observe and then run on mimic3
+        3. Preprocess as per Tal et. al.
+        4. Implement Tal et. al model on both (if they're different) variants of the preprocessed data (in case 3. is not a complete process)
+
+    Models with Summary only:
+    1. phrase classification: seq_len batchwise
+        ==> overfitting persists
+    2. full summary classification
+        ==> finer extraction
+        ==> take top 50 labels
+        ==> full summary in sequence
+            *hardly loss drop*
+        ==>max_seq_len: 500            
+        ==>padding from behind
+            *hardly loss drop*
+            *overfit after few steps*
+                mention of overfitting online: https://github.com/YerevaNN/mimic3-benchmarks#decompensation-prediction
+        *Adding more data doesnt fight overfitting and loss doesnt drop now*
+        *logs not getting saved*        
+
+        ==> check grad norm etc. of trained model
+        ==> cluster 50 labels to less no. and try
+
+    3. with Attention
+    4. sequence of notes
+
+    PP by Perotte et al (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3932472/)
+        1. A vocabulary was defined as the top 10 000 tokens ranked by their tf-idf score computed across the whole MIMIC dataset.
+

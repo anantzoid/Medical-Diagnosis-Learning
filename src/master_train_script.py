@@ -21,6 +21,7 @@ from attention_models import *
 from embedding_utils import *
 from evaluate import *
 from loss import *
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
@@ -40,9 +41,11 @@ parser.add_argument('--lr_decay_epoch', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=10)
 parser.add_argument('--log_interval', type=int, default=100)
 parser.add_argument('--vocab_threshold', type=int, default=20)
-parser.add_argument('--gpu_id', type=int, default=1)
+parser.add_argument('--gpu_id', type=int, default=0)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
+parser.add_argument('--embed_path', type=str, default="Starspace/stsp_model.tsv",
+                    help='Where are the initialized embeddings?')
 args = parser.parse_args()
 print(args)
 
@@ -61,12 +64,14 @@ if use_cuda:
 log_path = os.path.join('log', args.exp_name)
 if not os.path.exists(log_path):
     os.makedirs(log_path)
+else:
+    exit("Log path already exists. Enter a new exp_name")
 tensorboard_logger.configure(log_path)
 
 
 ## MIMIC data code
-traindata = pickle.load(open(args.train_path, 'r'))
-valdata = pickle.load(open(args.val_path, 'r'))
+traindata = pickle.load(open(args.train_path, 'rb'))
+valdata = pickle.load(open(args.val_path, 'rb'))
 print("Train size:", len(traindata))
 print("Valid size:", len(valdata))
 # traindata = chf_data(traindata)
@@ -99,8 +104,8 @@ count_labels(valdata)
 
 if args.use_starspace:
     # Load starspace embeddings into a dict
-    stsp_embed = load_starspace_embeds("../Starspace/stsp_model.tsv",
-                                        args.embed_dim)
+    #stsp_embed = load_starspace_embeds("Starspace/stsp_model.tsv", args.embed_dim)
+    stsp_embed = load_starspace_embeds(args.embed_path, args.embed_dim)
     print(type(stsp_embed))
     print("Embeddings loaded")
     for i, k in enumerate(stsp_embed):
@@ -163,7 +168,7 @@ if use_cuda:
 
 print("Starting training...")
 step = 0
-train_loss_mean = []
+#train_loss_mean = []
 for n_e in range(args.num_epochs):
     train_correct = 0
     for batch in train_loader:
@@ -193,12 +198,12 @@ for n_e in range(args.num_epochs):
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
         # print("Loss: {}".format(loss.data[0]))
-        train_loss_mean.append(loss.data[0])
-
+        #train_loss_mean.append(loss.data[0])
+        '''
         if step % args.log_interval ==0:
             val_loss_mean = 0
-            correct = 0
-            for val_batch in val_loader:
+            correct, f1, precision, recall = 0, 0., 0., 0.
+            for batch_idx, val_batch in enumerate(val_loader):
                 if batch[0].size(0) != args.batch_size:
                     continue
                 model.eval()
@@ -220,12 +225,20 @@ for n_e in range(args.num_epochs):
 
                 _, predicted = torch.max(outputs.data, 1)
                 correct += predicted.eq(val_batch_y.data).cpu().sum()
-
+                f1 += f1_score( val_batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro')
+                precision += precision_score(val_batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro')
+                recall += recall_score(predicted.cpu().numpy(), val_batch_y.data.cpu().numpy(), average='micro')
+            
+            aggregate = lambda x: x/float(batch_idx+1)
             train_loss_mean = np.mean(train_loss_mean)
             print(correct, len(val_loader.dataset))
             correct /= float(len(val_loader.dataset))
-            val_loss_mean /= float(len(val_loader.dataset))
+            val_loss_mean = aggregate(val_loss_mean)
+
             print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.3f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
+            
+            f1, precision, recall = aggregate(f1), aggregate(precision), aggregate(recall)
+            print("Validation F1: %.3f Precision %.3f Recall %.3f"%(f1, precision, recall ))
 
             param1, grad1 = calc_grad_norm(model.parameters(), 1)
             param2, grad2 = calc_grad_norm(model.parameters(), 2)
@@ -238,8 +251,12 @@ for n_e in range(args.num_epochs):
             tensorboard_logger.log_value('grad norm1', grad1, step)
             tensorboard_logger.log_value('param norm2', param2, step)
             tensorboard_logger.log_value('grad norm2', grad2, step)
-            train_loss_mean = []
 
+            tensorboard_logger.log_value('val f1', f1, step)
+            tensorboard_logger.log_value('val precision', precision, step)
+            tensorboard_logger.log_value('val recall', recall, step)
+            train_loss_mean = []
+        '''
         step += 1
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
@@ -249,8 +266,16 @@ for n_e in range(args.num_epochs):
     # print(predicted[:20])
     # print(val_batch_y[:20])
     print("Evaluating on training set")
-    eval_model(model, train_loader, args.batch_size, crit, use_cuda)
+    train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
     print("Evaluating on validation set")
-    eval_model(model, val_loader, args.batch_size, crit, use_cuda)
+    val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
 
+    tensorboard_logger.log_value('train loss', train_loss, n_e)
+    tensorboard_logger.log_value('train acc', train_acc, n_e)
+    tensorboard_logger.log_value('val loss', val_loss, n_e)
+    tensorboard_logger.log_value('val acc', val_acc, n_e)
+    tensorboard_logger.log_value('val f1', val_f1, n_e)
+    tensorboard_logger.log_value('val precision', val_precision, n_e)
+    tensorboard_logger.log_value('val recall', val_recall, n_e)
+ 
     torch.save(model.state_dict(), args.model_file)
