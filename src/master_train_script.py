@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
 parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_train_data.pkl')
 parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_valid_data.pkl')
-parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/testv1.pth')
+parser.add_argument('--model_dir', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/')
 parser.add_argument('--attention', type=int, default=0)
 parser.add_argument('--cbow', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=16)
@@ -66,6 +66,10 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 else:
     exit("Log path already exists. Enter a new exp_name")
+
+if not os.path.exists(args.model_dir):
+    os.makedirs(args.model_dir)
+
 tensorboard_logger.configure(log_path)
 
 
@@ -278,4 +282,4 @@ for n_e in range(args.num_epochs):
     tensorboard_logger.log_value('val precision', val_precision, n_e)
     tensorboard_logger.log_value('val recall', val_recall, n_e)
  
-    torch.save(model.state_dict(), args.model_file)
+    torch.save(model.state_dict(), os.path.join(args.model_dir, "%d.pth"%n_e))
