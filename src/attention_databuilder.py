@@ -68,6 +68,15 @@ class NotesData(Dataset):
             #### NOTE using last 10 sent for validating memory leak reason ###
             token_seq = [[token2idx.get(word, token2idx[UNKNOWN]) for word in sent] for sent in row[1]]#[-10:]
             label = label_map[row[2]]#.split(' ')[0]]
+            label_split = row[2].split(' ')
+            if len(label_split) == 1:
+                label = label_map[label_split[0]]
+            else:
+                label = [0]*len(label_map.keys())
+                for _,_l in enumerate(label_map.keys()):
+                    if _l in label_split:
+                        label[_] = 1
+
             data_proc.append([token_seq, label])
         self.data = data_proc
 
