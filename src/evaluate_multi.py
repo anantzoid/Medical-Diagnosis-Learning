@@ -58,13 +58,14 @@ def eval_model_multi(model, loader, batch_size, crit, use_cuda, num_labels, bs):
             print(pred_prob, predicted.data, y)
         if i % 1 == 0:
             print("Processed {} batches".format(i))
-            break
+            #break
     avg_loss = np.mean(avg_loss)
+    total *= num_labels
     micro_precision = np.sum(true_pos) / (np.sum(true_pos) + np.sum(false_pos))
     micro_recall = np.sum(true_pos) / (np.sum(true_pos) + np.sum(false_neg))
     micro_F = (2 * micro_precision * micro_recall) / (micro_precision + micro_recall)
-    print("correct: {}, avg_loss = {}, data_size: {}, prediction egs: {}, out egs: {}".format(
-              correct / float(total), avg_loss, data_size * bs, last_pred[:5], last_y[:5]))
+    print("correct: [{}/{}], {:.2f}%, avg_loss = {}, data_size: {}".format(
+              correct, total, (correct / float(total)) * 100, avg_loss, data_size * bs))
     print("True pos: {}, True neg: {}, False pos: {}, False neg: {}".format(
               np.sum(true_pos), np.sum(true_neg), np.sum(false_pos), np.sum(false_neg)))
     print("Micro precision: {:4f}, micro recall: {:4f}, micro F1: {:4f}".format(micro_precision, micro_recall, micro_F))

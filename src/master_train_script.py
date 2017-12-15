@@ -279,7 +279,7 @@ for n_e in range(args.num_epochs):
             train_loss_mean = []
         '''
         step += 1
-        break
+        #break
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
         print("LR changed to", args.lr)
@@ -307,4 +307,4 @@ for n_e in range(args.num_epochs):
     tensorboard_logger.log_value('val recall', val_recall, n_e)
  
     torch.save(model.state_dict(), os.path.join(args.model_dir, "%d.pth"%n_e))
-    break
+    #break
