@@ -279,6 +279,7 @@ for n_e in range(args.num_epochs):
             train_loss_mean = []
         '''
         step += 1
+	#print("Step: {}".format(step))
         #break
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
