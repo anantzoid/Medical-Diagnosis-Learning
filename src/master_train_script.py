@@ -125,8 +125,12 @@ if args.use_starspace:
                                                 args.embed_dim)
     print("Embedding matrix created")
 
-trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
-valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
+one_hot = False
+if args.multilabel:
+    print("Labels are one hot")
+    one_hot = True
+trainset = NotesData(traindata, token2idx, UNKNOWN, label_map, one_hot)
+valset = NotesData(valdata, token2idx, UNKNOWN, label_map, one_hot)
 print("Data Loaded in %.2f mns."%((time.time()-_t)/60))
 
 train_loader = torch.utils.data.DataLoader(dataset = trainset, batch_size=args.batch_size, shuffle=True,
@@ -177,12 +181,17 @@ if use_cuda:
 
 print("Starting training...")
 step = 0
+eg = True
 #train_loss_mean = []
 for n_e in range(args.num_epochs):
     train_correct = 0
     for batch in train_loader:
         if batch[0].size(0) != args.batch_size:
             continue
+	if eg:
+	    print("Printing an example...")
+	    print(batch[0].size(), batch[1].size())
+	    eg = False
         # print("Num padded sentences: {}, Num padded words per sentence: {}".format(
             # batch[0].size(1), batch[0].size(2)))
         word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
