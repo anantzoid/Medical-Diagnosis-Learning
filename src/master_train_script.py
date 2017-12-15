@@ -20,6 +20,7 @@ from attention_databuilder import *
 from attention_models import *
 from embedding_utils import *
 from evaluate import *
+from evaluate_multi import *
 from loss import *
 from sklearn.metrics import f1_score, precision_score, recall_score
 
@@ -163,8 +164,8 @@ if args.focalloss:
     crit = FocalLoss(len(label_map), use_cuda)
 else:
     if args.multilabel:
-	print("Mutilabel, using BCE loss")
-	crit = nn.BCEWithLogitsLoss()
+        print("Mutilabel, using BCE loss")
+        crit = nn.BCEWithLogitsLoss()
     else:
         print("Using cross entropy loss")
         crit = nn.CrossEntropyLoss()
@@ -182,18 +183,20 @@ if use_cuda:
 print("Starting training...")
 step = 0
 eg = True
+num_labels = None
 #train_loss_mean = []
 for n_e in range(args.num_epochs):
     train_correct = 0
     for batch in train_loader:
         if batch[0].size(0) != args.batch_size:
             continue
-	if eg:
-	    print("Printing an example...")
-	    print(batch[0].size(), batch[1].size())
-	    eg = False
+        if eg:
+            print("Printing an example...")
+            print(batch[0].size(), batch[1].size())
+            eg = False
         # print("Num padded sentences: {}, Num padded words per sentence: {}".format(
             # batch[0].size(1), batch[0].size(2)))
+        num_labels = batch[0].size(2)
         word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
         sent_hidden = model.sent_rnn.init_hidden()
         if use_cuda:
@@ -276,6 +279,7 @@ for n_e in range(args.num_epochs):
             train_loss_mean = []
         '''
         step += 1
+        break
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
         print("LR changed to", args.lr)
@@ -283,10 +287,16 @@ for n_e in range(args.num_epochs):
 
     # print(predicted[:20])
     # print(val_batch_y[:20])
-    print("Evaluating on training set")
-    train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
-    print("Evaluating on validation set")
-    val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
+    if args.multilabel:
+        print("Evaluating on training set, multilabel eval")
+        train_loss, train_acc, train_f1, train_precision, train_recall = eval_model_multi(model, train_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
+        print("Evaluating on validation set, multilabel eval")
+        val_loss, val_acc, val_f1, val_precision, val_recall = eval_model_multi(model, val_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
+    else:
+        print("Evaluating on training set")
+        train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
+        print("Evaluating on validation set")
+        val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
 
     tensorboard_logger.log_value('train loss', train_loss, n_e)
     tensorboard_logger.log_value('train acc', train_acc, n_e)
@@ -297,3 +307,4 @@ for n_e in range(args.num_epochs):
     tensorboard_logger.log_value('val recall', val_recall, n_e)
  
     torch.save(model.state_dict(), os.path.join(args.model_dir, "%d.pth"%n_e))
+    break
