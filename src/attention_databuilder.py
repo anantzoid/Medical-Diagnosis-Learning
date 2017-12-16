@@ -61,13 +61,22 @@ def build_vocab(data, PAD, UNKNOWN, vocab_threshold):
     return (vocab, token2idx)
 
 class NotesData(Dataset):
-    def __init__(self, data, token2idx,  UNKNOWN, label_map):
+    def __init__(self, data, token2idx,  UNKNOWN, label_map, one_hot):
         super(NotesData, self).__init__()
         data_proc = []
         for i, row in enumerate(data):
             #### NOTE using last 10 sent for validating memory leak reason ###
             token_seq = [[token2idx.get(word, token2idx[UNKNOWN]) for word in sent] for sent in row[1]]#[-10:]
-            label = label_map[row[2]]#.split(' ')[0]]
+            #label = label_map[row[2]]#.split(' ')[0]]
+            label_split = row[2].split(' ')
+            if one_hot == False:
+                label = label_map[label_split[0]]
+            else:
+                label = [0]*len(label_map.keys())
+                for _,_l in enumerate(label_map.keys()):
+                    if _l in label_split:
+                        label[_] = 1
+
             data_proc.append([token_seq, label])
         self.data = data_proc
 
@@ -92,7 +101,7 @@ def sent_batch_collate(batch):
                     if w < max_sentence_len:
                         x[n, s, w] = float(word)
 
-    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).long(), torch.from_numpy(np.array(lengths)))
+    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).float(), torch.from_numpy(np.array(lengths)))
 
 
 

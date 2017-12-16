@@ -20,6 +20,7 @@ from attention_databuilder import *
 from attention_models import *
 from embedding_utils import *
 from evaluate import *
+from evaluate_multi import *
 from loss import *
 from sklearn.metrics import f1_score, precision_score, recall_score
 
@@ -27,7 +28,7 @@ parser = argparse.ArgumentParser(description='MIMIC III notes data preparation')
 parser.add_argument('--exp_name', type=str, default='run')
 parser.add_argument('--train_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_train_data.pkl')
 parser.add_argument('--val_path', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_2_top1_valid_data.pkl')
-parser.add_argument('--model_file', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/testv1.pth')
+parser.add_argument('--model_dir', type=str, default='/misc/vlgscratch2/LecunGroup/laura/medical_notes/models/')
 parser.add_argument('--attention', type=int, default=0)
 parser.add_argument('--cbow', type=int, default=0)
 parser.add_argument('--batch_size', type=int, default=16)
@@ -44,6 +45,7 @@ parser.add_argument('--vocab_threshold', type=int, default=20)
 parser.add_argument('--gpu_id', type=int, default=0)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
+parser.add_argument('--multilabel', type=int, default=0)
 parser.add_argument('--embed_path', type=str, default="Starspace/stsp_model.tsv",
                     help='Where are the initialized embeddings?')
 args = parser.parse_args()
@@ -66,6 +68,11 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 else:
     exit("Log path already exists. Enter a new exp_name")
+
+args.model_dir = os.path.join(args.model_dir, args.exp_name)
+if not os.path.exists(args.model_dir):
+    os.makedirs(args.model_dir)
+
 tensorboard_logger.configure(log_path)
 
 
@@ -119,8 +126,12 @@ if args.use_starspace:
                                                 args.embed_dim)
     print("Embedding matrix created")
 
-trainset = NotesData(traindata, token2idx, UNKNOWN, label_map)
-valset = NotesData(valdata, token2idx, UNKNOWN, label_map)
+one_hot = False
+if args.multilabel:
+    print("Labels are one hot")
+    one_hot = True
+trainset = NotesData(traindata, token2idx, UNKNOWN, label_map, one_hot)
+valset = NotesData(valdata, token2idx, UNKNOWN, label_map, one_hot)
 print("Data Loaded in %.2f mns."%((time.time()-_t)/60))
 
 train_loader = torch.utils.data.DataLoader(dataset = trainset, batch_size=args.batch_size, shuffle=True,
@@ -152,9 +163,12 @@ if args.focalloss:
     print("Using focal loss")
     crit = FocalLoss(len(label_map), use_cuda)
 else:
-    print("Using cross entropy loss")
-    crit = nn.CrossEntropyLoss()
-# crit = nn.BCEWithLogitsLoss()
+    if args.multilabel:
+        print("Mutilabel, using BCE loss")
+        crit = nn.BCEWithLogitsLoss()
+    else:
+        print("Using cross entropy loss")
+        crit = nn.CrossEntropyLoss()
 opti = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
 # opti = torch.optim.RMSprop(model.parameters(), lr=args.lr)
 
@@ -168,14 +182,21 @@ if use_cuda:
 
 print("Starting training...")
 step = 0
+eg = True
+num_labels = None
 #train_loss_mean = []
 for n_e in range(args.num_epochs):
     train_correct = 0
     for batch in train_loader:
         if batch[0].size(0) != args.batch_size:
             continue
+        if eg:
+            print("Printing an example...")
+            print(batch[0].size(), batch[1].size())
+            eg = False
         # print("Num padded sentences: {}, Num padded words per sentence: {}".format(
             # batch[0].size(1), batch[0].size(2)))
+        num_labels = batch[0].size(2)
         word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
         sent_hidden = model.sent_rnn.init_hidden()
         if use_cuda:
@@ -258,6 +279,8 @@ for n_e in range(args.num_epochs):
             train_loss_mean = []
         '''
         step += 1
+	#print("Step: {}".format(step))
+        #break
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
         print("LR changed to", args.lr)
@@ -265,10 +288,16 @@ for n_e in range(args.num_epochs):
 
     # print(predicted[:20])
     # print(val_batch_y[:20])
-    print("Evaluating on training set")
-    train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
-    print("Evaluating on validation set")
-    val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
+    if args.multilabel:
+        print("Evaluating on training set, multilabel eval")
+        train_loss, train_acc, train_f1, train_precision, train_recall = eval_model_multi(model, train_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
+        print("Evaluating on validation set, multilabel eval")
+        val_loss, val_acc, val_f1, val_precision, val_recall = eval_model_multi(model, val_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
+    else:
+        print("Evaluating on training set")
+        train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
+        print("Evaluating on validation set")
+        val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
 
     tensorboard_logger.log_value('train loss', train_loss, n_e)
     tensorboard_logger.log_value('train acc', train_acc, n_e)
@@ -278,4 +307,5 @@ for n_e in range(args.num_epochs):
     tensorboard_logger.log_value('val precision', val_precision, n_e)
     tensorboard_logger.log_value('val recall', val_recall, n_e)
  
-    torch.save(model.state_dict(), args.model_file)
+    torch.save(model.state_dict(), os.path.join(args.model_dir, "%d.pth"%n_e))
+    #break

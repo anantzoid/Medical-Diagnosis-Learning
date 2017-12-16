@@ -34,9 +34,9 @@ def eval_model(model, loader, batch_size, crit, use_cuda):
         total += batch[1].size(0)
         # print(predicted, batch_y)
         correct += (predicted == batch_y.data).sum()
-        f1.append(f1_score( val_batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro'))
-        precision.append(precision_score(val_batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro'))
-        recall.append(recall_score(predicted.cpu().numpy(), val_batch_y.data.cpu().numpy(), average='micro'))
+        f1.append(f1_score( batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro'))
+        precision.append(precision_score(batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro'))
+        recall.append(recall_score(predicted.cpu().numpy(), batch_y.data.cpu().numpy(), average='micro'))
 
         if i == 1:
             print(pred_prob, predicted.data.cpu().numpy(), batch_y.data.cpu().numpy())
