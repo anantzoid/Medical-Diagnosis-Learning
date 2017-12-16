@@ -33,8 +33,8 @@ def count_labels(data):
         icds = row[-1].split(' ')
         labels.extend(icds)
         labels_per_eg.append(len(icds))
-    print("Avg: {}, Min: {}, Max: {} codes per example".format(
-        np.mean(labels_per_eg), min(labels_per_eg), max(labels_per_eg)))
+    print("Avg: {}, Min: {}, Max: {} Std: {}, codes per example".format(
+        np.mean(labels_per_eg), min(labels_per_eg), max(labels_per_eg), np.std(labels_per_eg)))
     print(Counter(labels))
 
 parser = argparse.ArgumentParser(
