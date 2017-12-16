@@ -39,7 +39,7 @@ def eval_model(model, loader, batch_size, crit, use_cuda):
         recall.append(recall_score(predicted.cpu().numpy(), batch_y.data.cpu().numpy(), average='micro'))
 
         if i == 1:
-            print(pred_prob, predicted.data.cpu().numpy(), batch_y.data.cpu().numpy())
+            print(pred_prob, predicted.cpu().numpy(), batch_y.data.cpu().numpy())
         if i % 100 == 0:
             print("Processed {} batches".format(i))
     avg_loss = np.mean(avg_loss)
