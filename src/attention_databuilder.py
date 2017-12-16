@@ -11,28 +11,6 @@ import numpy as np
 import math
 
 
-def chf_data(traindata):
-    filter_traindata = []
-    for row in traindata:
-        if '428' in row[-1].split(' ')[0]:
-            row[-1] = '1'
-            filter_traindata.append(row)
-    print("+ve sample  len:", len(filter_traindata))
-    neg_count = 0
-    neg_train = []
-    for row in traindata:
-        if neg_count == len(filter_traindata):
-            break
-        if '428' not in row[-1].split(' ')[0]:
-            row[-1] = '0'
-            neg_train.append(row)
-            neg_count += 1
-    traindata = filter_traindata + neg_train
-    random.shuffle(traindata)
-    return traindata
-
-
-
 ### NOTE this is temp
 def get_labels(data):
     labels = []
@@ -77,7 +55,7 @@ class NotesData(Dataset):
                     if _l in label_split:
                         label[_] = 1
 
-            data_proc.append([token_seq, label])
+            data_proc.append([token_seq, label, row[1]])
         self.data = data_proc
 
     def __getitem__(self, index):
@@ -101,7 +79,7 @@ def sent_batch_collate(batch):
                     if w < max_sentence_len:
                         x[n, s, w] = float(word)
 
-    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).float(), torch.from_numpy(np.array(lengths)))
+    return (x.long(), torch.from_numpy(np.array([_[1] for _ in batch])).float(), torch.from_numpy(np.array(lengths)), [_[2] for _ in batch])
 
 
 

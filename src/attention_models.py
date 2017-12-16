@@ -138,7 +138,7 @@ class Attend(nn.Module):
         # #print("x.alpha prod:", attended.size())
         # attended = torch.sum(attended, 2)
         # #print("attended sum:", attended.size())
-        return attended
+        return (attended, probs)
 
 
 
@@ -268,7 +268,8 @@ class HANModel(nn.Module):
         #print("word rnn op size:", x.size())
         #print("word rnn hidden size:", word_hidden.size())
         # Attend on words
-        x = self.wordattention(x)
+        print("!!Word Attention")
+        x, word_att_weights = self.wordattention(x)
         #print("Sentence summary shape:", x.size())
         # Output: (batch size * num sentences) x hidden state size
         # Reshape to: batch size x num sentences x hidden state size
@@ -278,13 +279,14 @@ class HANModel(nn.Module):
         #print("======= sentence model =====")
         x, sent_hidden = self.sent_rnn(x, sent_hidden)
         # Attend on sentences
-        x = self.sentattention(x)
+        print("!!Sentence Attention")
+        x, sent_att_weights = self.sentattention(x)
         x = x.contiguous().view(true_batch_size[0], -1)
         #print("After sentence model", x.size())
         x = self.clf(x)
         #print("Output size: ", x.size())
         #exit()
-        return x
+        return (x, word_att_weights, sent_att_weights)
 
 
 
