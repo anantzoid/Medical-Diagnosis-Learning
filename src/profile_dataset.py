@@ -14,7 +14,6 @@ def count_unks(data):
             toks += len(sent)
     print("Toks: {} Unks: {} % UNKs: {:.3f}".format(toks, unks, unks / float(toks)))
 
-
 def get_stats(data):
     words_per_sent = []
     sents_per_note = []
@@ -27,6 +26,16 @@ def get_stats(data):
     print("Avg words: {:.3f}, Min words: {}: Max words: {}".format(
           np.mean(words_per_sent), min(words_per_sent), max(words_per_sent)))
 
+def count_labels(data):
+    labels = []
+    labels_per_eg = []
+    for row in data:
+        icds = row[-1].split(' ')
+        labels.extend(icds)
+        labels_per_eg.append(len(icds))
+    print("Avg: {}, Min: {}, Max: {} codes per example".format(
+        np.mean(labels_per_eg), min(labels_per_eg), max(labels_per_eg)))
+    print(Counter(labels))
 
 parser = argparse.ArgumentParser(
     description='MIMIC III notes data preparation')
