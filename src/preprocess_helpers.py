@@ -203,10 +203,10 @@ def get_top_diagnoses(diagnoses, num_labels):
     for key in diagnoses:
         icds = diagnoses[key]['labels']['icd']
         diagnoses_list.extend(icds)
+    print(list(Counter(diagnoses_list).most_common(num_labels)))
     top_diagnoses = [_[0]
                      for _ in list(Counter(diagnoses_list).most_common(num_labels))]
     return top_diagnoses
-
 
 def remove_diagnoses_not_intopK(diagnoses, top_diagnoses):
     for key in diagnoses:
@@ -353,6 +353,9 @@ def build_notes(notes_path, data, note_types):
 
 def convert_format(data):
     new_data = []
+    excluded = 0
+    short = 0
+    total = 0
     for key in data:
         datapoint = []
         if 'notes' in data[key]:
@@ -367,11 +370,23 @@ def convert_format(data):
                     else:
                         # Just use first note for now
                         # datapoint[1] += ". " + note['note']
-                        print("Just using first note...")
+                        #print("Just using first note...")
+                        excluded += 1
+                else:
+                    excluded += 1
+                total += 1
+        else:
+            short += 1
         if len(datapoint) != 0:
             new_data.append(datapoint)
+    print("Excluded {} out of {} notes. No notes {}".format(excluded, total, short))
     return new_data
 
+def count_labels(data, num_labels):
+    labels = []
+    for d in data:
+        labels.extend(d[2].split(" "))
+    print(list(Counter(labels).most_common(num_labels)))
 
 def write_to_file(filename, data):
     f = open(filename, 'w')
