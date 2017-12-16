@@ -18,6 +18,7 @@ import subprocess
 
 from attention_databuilder import *
 from attention_models import *
+#from preprocess_helpers import count_labels
 from embedding_utils import *
 from evaluate import *
 from evaluate_multi import *
@@ -78,7 +79,9 @@ tensorboard_logger.configure(log_path)
 
 ## MIMIC data code
 traindata = pickle.load(open(args.train_path, 'rb'))
+#count_labels(traindata, 50)
 valdata = pickle.load(open(args.val_path, 'rb'))
+#count_labels(valdata, 50)
 print("Train size:", len(traindata))
 print("Valid size:", len(valdata))
 # traindata = chf_data(traindata)
@@ -93,6 +96,8 @@ if args.build_starspace:
     subprocess.call(['./Starspace/run.sh'])
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
+print(label_map)
+print(len(label_map))
 vocabulary, token2idx  = build_vocab(traindata, PADDING, UNKNOWN, args.vocab_threshold)
 print("Vocab size:", len(vocabulary))
 print(vocabulary[:20])
@@ -108,7 +113,8 @@ print("Label mix training data")
 count_labels(traindata)
 print("Label mix valid data")
 count_labels(valdata)
-
+num_labels = len(label_map)
+print("Number of labels is {}".format(num_labels))
 if args.use_starspace:
     # Load starspace embeddings into a dict
     #stsp_embed = load_starspace_embeds("Starspace/stsp_model.tsv", args.embed_dim)
@@ -183,7 +189,6 @@ if use_cuda:
 print("Starting training...")
 step = 0
 eg = True
-num_labels = None
 #train_loss_mean = []
 for n_e in range(args.num_epochs):
     train_correct = 0
@@ -196,7 +201,7 @@ for n_e in range(args.num_epochs):
             eg = False
         # print("Num padded sentences: {}, Num padded words per sentence: {}".format(
             # batch[0].size(1), batch[0].size(2)))
-        num_labels = batch[0].size(2)
+        #num_labels = batch[0].size(2)
         word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1))
         sent_hidden = model.sent_rnn.init_hidden()
         if use_cuda:
@@ -290,6 +295,7 @@ for n_e in range(args.num_epochs):
     # print(val_batch_y[:20])
     if args.multilabel:
         print("Evaluating on training set, multilabel eval")
+        print("Number of labels is {}".format(num_labels))
         train_loss, train_acc, train_f1, train_precision, train_recall = eval_model_multi(model, train_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
         print("Evaluating on validation set, multilabel eval")
         val_loss, val_acc, val_f1, val_precision, val_recall = eval_model_multi(model, val_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)

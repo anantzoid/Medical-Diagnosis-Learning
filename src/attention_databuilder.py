@@ -37,14 +37,14 @@ def chf_data(traindata):
 def get_labels(data):
     labels = []
     for row in data:
-        labels.append(row[-1].split(' ')[0])
+        labels.extend(row[-1].split(' '))
     print(Counter(labels))
     return list(set(labels))
 
 def count_labels(data):
     labels = []
     for row in data:
-        labels.append(row[-1].split(' ')[0])
+        labels.extend(row[-1].split(' '))
     print(Counter(labels))
 
 def build_vocab(data, PAD, UNKNOWN, vocab_threshold):

@@ -1,7 +1,7 @@
 import re
 import csv
 from collections import Counter
-import editdistance
+#import editdistance
 import random
 random.seed(101)
 UNKS = 0
