@@ -46,6 +46,7 @@ parser.add_argument('--vocab_threshold', type=int, default=20)
 parser.add_argument('--gpu_id', type=int, default=0)
 parser.add_argument('--build_starspace', type=int, default=0)
 parser.add_argument('--use_starspace', type=int, default=1)
+parser.add_argument('--starspace_exec', type=str, default='./Starspace/run.sh')
 parser.add_argument('--multilabel', type=int, default=0)
 parser.add_argument('--embed_path', type=str, default="Starspace/stsp_model.tsv",
                     help='Where are the initialized embeddings?')
@@ -93,7 +94,7 @@ if args.build_starspace:
     print("Building starspace embeddings. This will take a few minutes...")
     stsp_data = convert_unflat_data_to_starspace_format(traindata)
     write_starspace_format(stsp_data, "stsp_embeddings.txt")
-    subprocess.call(['./Starspace/run.sh'])
+    subprocess.call([args.starspace_exec])
 
 label_map = {i:_ for _,i in enumerate(get_labels(traindata))}
 print(label_map)
