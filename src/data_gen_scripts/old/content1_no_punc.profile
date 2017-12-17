@@ -1,1 +1,0 @@
-Namespace(train_path='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_1_top1_no_punc_train_data.pkl', val_path='/misc/vlgscratch2/LecunGroup/laura/medical_notes/processed_data/10codesL5_UNK_content_1_top1_no_punc_valid_data.pkl', vocab_threshold=5)
