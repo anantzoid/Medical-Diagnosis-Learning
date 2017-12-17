@@ -219,74 +219,13 @@ for n_e in range(args.num_epochs):
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
             length_x = length_x.cuda()
 
-        pred_prob = model(batch_x, word_hidden, sent_hidden, length_x)
+        pred_prob, w, s = model(batch_x, word_hidden, sent_hidden, length_x)
         loss = crit(pred_prob, batch_y)
         loss.backward()
         torch.nn.utils.clip_grad_norm(model.parameters(), 1.0)
         opti.step()
-        # print("Loss: {}".format(loss.data[0]))
-        #train_loss_mean.append(loss.data[0])
-        '''
-        if step % args.log_interval ==0:
-            val_loss_mean = 0
-            correct, f1, precision, recall = 0, 0., 0., 0.
-            for batch_idx, val_batch in enumerate(val_loader):
-                if batch[0].size(0) != args.batch_size:
-                    continue
-                model.eval()
-                word_hidden = model.word_rnn.init_hidden(batch[0].size(0) * batch[0].size(1), True)
-                sent_hidden = model.sent_rnn.init_hidden(True)
-                if use_cuda:
-                    word_hidden, sent_hidden = word_hidden.cuda(), sent_hidden.cuda()
 
-
-                batch_x, val_batch_y = Variable(batch[0], volatile=True), Variable(batch[1])
-                length_x = batch[2].type(torch.FloatTensor).unsqueeze(1)
-                length_x = Variable(length_x)
-                if use_cuda:
-                    batch_x, val_batch_y = batch_x.cuda(), val_batch_y.cuda()
-
-                outputs = model(batch_x, word_hidden, sent_hidden, length_x)
-                val_loss = crit(outputs, val_batch_y)
-                val_loss_mean += val_loss.data[0]
-
-                _, predicted = torch.max(outputs.data, 1)
-                correct += predicted.eq(val_batch_y.data).cpu().sum()
-                f1 += f1_score( val_batch_y.data.cpu().numpy(), predicted.cpu().numpy(), average='micro')
-                precision += precision_score(val_batch_y.data.cpu().numpy(),predicted.cpu().numpy(),  average='micro')
-                recall += recall_score(predicted.cpu().numpy(), val_batch_y.data.cpu().numpy(), average='micro')
-            
-            aggregate = lambda x: x/float(batch_idx+1)
-            train_loss_mean = np.mean(train_loss_mean)
-            print(correct, len(val_loader.dataset))
-            correct /= float(len(val_loader.dataset))
-            val_loss_mean = aggregate(val_loss_mean)
-
-            print("Epoch: %d, Step: %d, Train Loss: %.2f, Val Loss: %.2f, Val acc: %.3f"%(n_e, step, train_loss_mean, val_loss_mean, correct))
-            
-            f1, precision, recall = aggregate(f1), aggregate(precision), aggregate(recall)
-            print("Validation F1: %.3f Precision %.3f Recall %.3f"%(f1, precision, recall ))
-
-            param1, grad1 = calc_grad_norm(model.parameters(), 1)
-            param2, grad2 = calc_grad_norm(model.parameters(), 2)
-            print("Param Norm1: %.2f, grad Norm1: %.2f, Param Norm12: %.2f, grad Norm2: %.2f"%(param1, grad1, param2, grad2))
-
-            tensorboard_logger.log_value('train_loss', train_loss_mean, step)
-            tensorboard_logger.log_value('val_loss', val_loss_mean, step)
-            tensorboard_logger.log_value('val_acc', correct, step)
-            tensorboard_logger.log_value('param norm1', param1, step)
-            tensorboard_logger.log_value('grad norm1', grad1, step)
-            tensorboard_logger.log_value('param norm2', param2, step)
-            tensorboard_logger.log_value('grad norm2', grad2, step)
-
-            tensorboard_logger.log_value('val f1', f1, step)
-            tensorboard_logger.log_value('val precision', precision, step)
-            tensorboard_logger.log_value('val recall', recall, step)
-            train_loss_mean = []
-        '''
         step += 1
-	#print("Step: {}".format(step))
-        #break
     if n_e % args.lr_decay_epoch == 0:
         args.lr *= args.lr_decay_rate
         print("LR changed to", args.lr)

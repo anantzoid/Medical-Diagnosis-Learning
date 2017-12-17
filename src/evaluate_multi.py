@@ -35,7 +35,7 @@ def eval_model_multi(model, loader, batch_size, crit, use_cuda, num_labels, bs):
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
             length_x = length_x.cuda()
 
-        out = model(batch_x, word_hidden, sent_hidden, length_x)
+        out, s, w = model(batch_x, word_hidden, sent_hidden, length_x)
         loss = crit(out, batch_y)
         total_loss += loss.data[0]
         avg_loss.append(loss.data[0])
