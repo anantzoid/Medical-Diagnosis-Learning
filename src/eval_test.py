@@ -146,7 +146,8 @@ if use_cuda:
         model.wordattention.context = model.wordattention.context.cuda()
         model.sentattention.context = model.sentattention.context.cuda()
 
-print("Evaluating on test set")
-val_loss, val_acc, val_f1, val_precision, val_recall = eval_model(model, val_loader, args.batch_size, crit, use_cuda)
-print("Evaluating on training set")
-train_loss, train_acc, train_f1, train_precision, train_recall = eval_model(model, train_loader, args.batch_size, crit, use_cuda)
+print("Number of labels is {}".format(num_labels))
+print("Evaluating on test set, multilabel eval")
+val_loss, val_acc, val_f1, val_precision, val_recall = eval_model_multi(model, val_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
+print("Evaluating on training set, multilabel eval")
+train_loss, train_acc, train_f1, train_precision, train_recall = eval_model_multi(model, train_loader, args.batch_size, crit, use_cuda, num_labels, args.batch_size)
